@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { Renderer, Program, Mesh, Triangle } from 'ogl';
 import './GradientBlinds.css';
 
@@ -37,7 +37,7 @@ type GradientBlindsProps = {
   spotlightOpacity?: number;
   distortAmount?: number;
   shineDirection?: 'left' | 'right';
-  mixBlendMode?: string;
+  mixBlendMode?: CSSProperties['mixBlendMode'];
 };
 
 const GradientBlinds = ({

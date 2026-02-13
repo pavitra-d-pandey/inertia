@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import {
   Scene,
   OrthographicCamera,
@@ -244,7 +244,7 @@ type FloatingLinesProps = {
   mouseDamping?: number;
   parallax?: boolean;
   parallaxStrength?: number;
-  mixBlendMode?: string;
+  mixBlendMode?: CSSProperties['mixBlendMode'];
 };
 
 export default function FloatingLines({
