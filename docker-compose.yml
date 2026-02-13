@@ -1,0 +1,40 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: inertia-mongo
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  backend:
+    build: ./backend
+    container_name: inertia-backend
+    environment:
+      PORT: "8080"
+      MONGODB_URI: "mongodb://mongo:27017"
+      MONGODB_DB: "inertia"
+      CLOUDINARY_CLOUD_NAME: "dejvr0rvb"
+      CLOUDINARY_API_KEY: "647749611925574"
+      CLOUDINARY_API_SECRET: "bwarL2ZiPdA7p6un2lr4OC5RTXM"
+      CLOUDINARY_URL: "cloudinary://647749611925574:bwarL2ZiPdA7p6un2lr4OC5RTXM@dejvr0rvb"
+      ADMIN_TOKEN: "mediacell@123"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mongo
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    container_name: inertia-frontend
+    environment:
+      VITE_API_URL: "http://localhost:8080"
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  mongo_data:

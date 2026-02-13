@@ -1,0 +1,45 @@
+import { useEffect } from 'react';
+import { Routes, Route } from 'react-router-dom';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import Background from './components/Background';
+import Home from './components/pages/Home';
+import Hackathon from './components/pages/Hackathon';
+import Workshops from './components/pages/Workshops';
+import RoboRace from './components/pages/RoboRace';
+import Culture from './components/pages/Culture';
+import Gallery from './components/pages/Gallery';
+import Team from './components/pages/Team';
+import Contact from './components/pages/Contact';
+import Admin from './components/pages/Admin';
+import AdminRegistrations from './components/pages/AdminRegistrations';
+import NotFound from './components/pages/NotFound';
+
+export default function App() {
+  useEffect(() => {
+    document.documentElement.dataset.theme = 'dark';
+  }, []);
+
+  return (
+    <div className="app-shell">
+      <Background />
+      <Header />
+      <main className="app-content">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/hackathon" element={<Hackathon />} />
+          <Route path="/workshops" element={<Workshops />} />
+          <Route path="/robo-race" element={<RoboRace />} />
+          <Route path="/culture" element={<Culture />} />
+          <Route path="/gallery" element={<Gallery />} />
+          <Route path="/team" element={<Team />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/secret-admin" element={<Admin />} />
+          <Route path="/secret-admin/registrations" element={<AdminRegistrations />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </main>
+      <Footer />
+    </div>
+  );
+}
