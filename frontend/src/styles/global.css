@@ -486,6 +486,16 @@ textarea:focus {
   text-align: center;
 }
 
+.team-feature-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 28px;
+}
+
+.team-feature-card {
+  width: min(100%, 560px);
+}
+
 .team-grid {
   display: grid;
   gap: 20px;

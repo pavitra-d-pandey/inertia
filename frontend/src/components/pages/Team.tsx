@@ -13,6 +13,17 @@ export default function Team() {
 
   return (
     <section className="section">
+      <div className="team-feature-wrap">
+        <div className="team-card team-feature-card">
+          <img src="/photo.jpg" alt="Pavitra Durgesh Pandey" />
+          <div className="team-meta">
+            <strong>Pavitra Durgesh Pandey</strong>
+            <p className="team-role">Technical Head</p>
+            <p>Created the official website of Inertia 2.0</p>
+          </div>
+        </div>
+      </div>
+
       <h2 className="section-title">Core Team</h2>
       <p className="section-subtitle">
         Meet the team behind Inertia 2.0.
