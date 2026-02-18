@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { fetchJson } from '../../lib/api';
 import { EventInfo, FAQ, GalleryItem, LandingContent } from '../../lib/types';
 
@@ -89,12 +90,12 @@ export default function Home() {
             <h1 className="hero-title">{landing.heroTitle}</h1>
             <p className="hero-subtitle">{landing.heroSubtitle}</p>
             <div className="hero-actions">
-              <a className="btn btn-primary" href="/hackathon">
-                Hackathon Teams
-              </a>
-              <a className="btn btn-ghost" href="/workshops">
+              <Link className="btn btn-primary" to="/register">
+                Register Now
+              </Link>
+              <Link className="btn btn-ghost" to="/workshops">
                 Workshop Registration
-              </a>
+              </Link>
             </div>
             <div className="pillars">
               <span className="pillar">{landing.dates}</span>
@@ -182,9 +183,9 @@ export default function Home() {
               <span className="badge">{event.dateLabel}</span>
               <h3>{event.title}</h3>
               <p>{event.description}</p>
-              <a className="btn btn-ghost" href={`/${event.slug}`}>
+              <Link className="btn btn-ghost" to={`/${event.slug}`}>
                 {event.ctaLabel}
-              </a>
+              </Link>
             </div>
           ))}
         </div>

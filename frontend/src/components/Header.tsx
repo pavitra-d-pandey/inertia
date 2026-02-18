@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -30,9 +30,9 @@ export default function Header() {
         ))}
       </nav>
       <div className="header-cta">
-        <a className="btn btn-primary" href="/workshops">
+        <Link className="btn btn-primary" to="/register">
           Register Now
-        </a>
+        </Link>
       </div>
     </header>
   );

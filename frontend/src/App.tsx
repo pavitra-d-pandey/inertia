@@ -3,10 +3,12 @@ import { Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import Background from './components/Background';
+import ScrollToTop from './components/ScrollToTop';
 import Home from './components/pages/Home';
 import Hackathon from './components/pages/Hackathon';
 import Workshops from './components/pages/Workshops';
 import RoboRace from './components/pages/RoboRace';
+import Register from './components/pages/Register';
 import Culture from './components/pages/Culture';
 import Gallery from './components/pages/Gallery';
 import Team from './components/pages/Team';
@@ -22,11 +24,13 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <ScrollToTop />
       <Background />
       <Header />
       <main className="app-content">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/register" element={<Register />} />
           <Route path="/hackathon" element={<Hackathon />} />
           <Route path="/workshops" element={<Workshops />} />
           <Route path="/robo-race" element={<RoboRace />} />
