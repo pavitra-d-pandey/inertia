@@ -59,6 +59,15 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.POST("/glimpse", h.saveGlimpse)
 		admin.POST("/team", h.saveTeamMember)
 		admin.POST("/culture-event", h.saveCulturalEvent)
+		admin.GET("/content/gallery", h.getGallery)
+		admin.GET("/content/team", h.getTeam)
+		admin.GET("/content/culture-events", h.getCulturalEvents)
+		admin.PUT("/glimpse/:id", h.updateGlimpse)
+		admin.DELETE("/glimpse/:id", h.deleteGlimpse)
+		admin.PUT("/team/:id", h.updateTeamMember)
+		admin.DELETE("/team/:id", h.deleteTeamMember)
+		admin.PUT("/culture-event/:id", h.updateCulturalEvent)
+		admin.DELETE("/culture-event/:id", h.deleteCulturalEvent)
 		admin.POST("/notifications/broadcast", h.broadcastEmail)
 		admin.GET("/registrations/workshops", h.getWorkshopRegistrations)
 		admin.GET("/registrations/robo-race", h.getRoboRegistrations)
@@ -678,6 +687,202 @@ func (h *Handler) saveCulturalEvent(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Cultural event saved"})
+}
+
+func (h *Handler) updateGlimpse(c *gin.Context) {
+	id, ok := parsePathID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Title       string `json:"title"`
+		Preview     string `json:"preview"`
+		Description string `json:"description"`
+		ImageURL    string `json:"imageUrl"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if req.Title == "" || req.Preview == "" || req.Description == "" || req.ImageURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	res, err := h.DB.Collection("gallery").UpdateOne(ctx, bson.M{"id": id}, bson.M{
+		"$set": bson.M{
+			"title":       req.Title,
+			"preview":     req.Preview,
+			"description": req.Description,
+			"imageUrl":    req.ImageURL,
+		},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
+		return
+	}
+	if res.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Gallery item updated"})
+}
+
+func (h *Handler) deleteGlimpse(c *gin.Context) {
+	id, ok := parsePathID(c)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	res, err := h.DB.Collection("gallery").DeleteOne(ctx, bson.M{"id": id})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
+		return
+	}
+	if res.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Gallery item deleted"})
+}
+
+func (h *Handler) updateTeamMember(c *gin.Context) {
+	id, ok := parsePathID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Name     string `json:"name"`
+		Role     string `json:"role"`
+		Preview  string `json:"preview"`
+		About    string `json:"about"`
+		ImageURL string `json:"imageUrl"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if req.Name == "" || req.Role == "" || req.Preview == "" || req.About == "" || req.ImageURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	res, err := h.DB.Collection("team_members").UpdateOne(ctx, bson.M{"id": id}, bson.M{
+		"$set": bson.M{
+			"name":     req.Name,
+			"role":     req.Role,
+			"preview":  req.Preview,
+			"about":    req.About,
+			"imageUrl": req.ImageURL,
+		},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
+		return
+	}
+	if res.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Team member updated"})
+}
+
+func (h *Handler) deleteTeamMember(c *gin.Context) {
+	id, ok := parsePathID(c)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	res, err := h.DB.Collection("team_members").DeleteOne(ctx, bson.M{"id": id})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
+		return
+	}
+	if res.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Team member deleted"})
+}
+
+func (h *Handler) updateCulturalEvent(c *gin.Context) {
+	id, ok := parsePathID(c)
+	if !ok {
+		return
+	}
+
+	var req struct {
+		Title       string `json:"title"`
+		Preview     string `json:"preview"`
+		Description string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if req.Title == "" || req.Preview == "" || req.Description == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	res, err := h.DB.Collection("cultural_events").UpdateOne(ctx, bson.M{"id": id}, bson.M{
+		"$set": bson.M{
+			"title":       req.Title,
+			"preview":     req.Preview,
+			"description": req.Description,
+		},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "update failed"})
+		return
+	}
+	if res.MatchedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Cultural event updated"})
+}
+
+func (h *Handler) deleteCulturalEvent(c *gin.Context) {
+	id, ok := parsePathID(c)
+	if !ok {
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	res, err := h.DB.Collection("cultural_events").DeleteOne(ctx, bson.M{"id": id})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
+		return
+	}
+	if res.DeletedCount == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "item not found"})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Cultural event deleted"})
+}
+
+func parsePathID(c *gin.Context) (int64, bool) {
+	rawID := c.Param("id")
+	id, err := strconv.ParseInt(rawID, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid id"})
+		return 0, false
+	}
+	return id, true
 }
 
 func (h *Handler) getWorkshopRegistrations(c *gin.Context) {

@@ -15,6 +15,7 @@ import Team from './components/pages/Team';
 import Contact from './components/pages/Contact';
 import Admin from './components/pages/Admin';
 import AdminRegistrations from './components/pages/AdminRegistrations';
+import AdminContentManager from './components/pages/AdminContentManager';
 import NotFound from './components/pages/NotFound';
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/secret-admin" element={<Admin />} />
           <Route path="/secret-admin/registrations" element={<AdminRegistrations />} />
+          <Route path="/secret-admin/manage-content" element={<AdminContentManager />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
