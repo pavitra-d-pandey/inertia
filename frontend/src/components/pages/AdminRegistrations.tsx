@@ -4,6 +4,18 @@ import { fetchJson } from '../../lib/api';
 import { getSecretAdminToken, isSecretAdminUnlocked, unlockSecretAdmin } from '../../lib/adminAuth';
 import { HackathonRegistration, RoboRegistration, WorkshopRegistration } from '../../lib/types';
 
+function formatMembersForHackathon(item: HackathonRegistration) {
+  return item.members
+    .map((member, index) => `${index + 1}. ${member.name} (${member.gender}) | ${member.email} | ${member.phone}`)
+    .join('\n');
+}
+
+function formatMembersForRobo(item: RoboRegistration) {
+  return item.members
+    .map((member, index) => `${index + 1}. ${member.name} | ${member.email} | ${member.phone}`)
+    .join('\n');
+}
+
 export default function AdminRegistrations() {
   const [isUnlocked, setIsUnlocked] = useState(isSecretAdminUnlocked());
   const [password, setPassword] = useState('');
@@ -68,41 +80,47 @@ export default function AdminRegistrations() {
 
   return (
     <section className="section">
-      <h2 className="section-title">Registrations</h2>
-      <p className="section-subtitle">All submitted registrations across Hackathon, Workshops, and Robo Race.</p>
+      <h2 className="section-title">Registrations Dashboard</h2>
+      <p className="section-subtitle">Segregated event-wise records with payment status and member details.</p>
       <div className="admin-links">
         <Link className="btn btn-ghost" to="/secret-admin">Back To Content Panel</Link>
       </div>
 
       <div className="card" style={{ marginTop: '22px' }}>
-        <h4>Hackathon Registrations</h4>
+        <h4>Hackathon Teams</h4>
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
                 <th>Team</th>
-                <th>Code</th>
-                <th>Member</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Gender</th>
+                <th>Contact</th>
+                <th>Members</th>
+                <th>Payment</th>
                 <th>Created</th>
               </tr>
             </thead>
             <tbody>
               {hackathon.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>No registrations yet.</td>
+                  <td colSpan={5}>No registrations yet.</td>
                 </tr>
               ) : (
                 hackathon.map(item => (
                   <tr key={item.id}>
-                    <td>{item.teamName}</td>
-                    <td>{item.teamCode}</td>
-                    <td>{item.name}</td>
-                    <td>{item.email}</td>
-                    <td>{item.phone}</td>
-                    <td>{item.gender}</td>
+                    <td>
+                      <strong>{item.teamName}</strong>
+                      <p>{item.memberCount} members, {item.femaleCount} female</p>
+                    </td>
+                    <td>
+                      <strong>{item.contactName}</strong>
+                      <p>{item.contactEmail}</p>
+                      <p>{item.contactPhone}</p>
+                    </td>
+                    <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>{formatMembersForHackathon(item)}</td>
+                    <td>
+                      <strong>{item.paymentStatus || 'unknown'}</strong>
+                      <p>{item.paymentId || '-'}</p>
+                    </td>
                     <td>{item.createdAt}</td>
                   </tr>
                 ))
@@ -122,13 +140,14 @@ export default function AdminRegistrations() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
+                <th>Payment</th>
                 <th>Created</th>
               </tr>
             </thead>
             <tbody>
               {workshops.length === 0 ? (
                 <tr>
-                  <td colSpan={5}>No registrations yet.</td>
+                  <td colSpan={6}>No registrations yet.</td>
                 </tr>
               ) : (
                 workshops.map(item => (
@@ -137,6 +156,10 @@ export default function AdminRegistrations() {
                     <td>{item.name}</td>
                     <td>{item.email}</td>
                     <td>{item.phone}</td>
+                    <td>
+                      <strong>{item.paymentStatus || 'unknown'}</strong>
+                      <p>{item.paymentId || '-'}</p>
+                    </td>
                     <td>{item.createdAt}</td>
                   </tr>
                 ))
@@ -147,32 +170,41 @@ export default function AdminRegistrations() {
       </div>
 
       <div className="card" style={{ marginTop: '22px' }}>
-        <h4>Robo Race Registrations</h4>
+        <h4>Robo Race Teams</h4>
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
                 <th>Team</th>
                 <th>Captain</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Robot</th>
+                <th>Members</th>
+                <th>Payment</th>
                 <th>Created</th>
               </tr>
             </thead>
             <tbody>
               {roboRace.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>No registrations yet.</td>
+                  <td colSpan={5}>No registrations yet.</td>
                 </tr>
               ) : (
                 roboRace.map(item => (
                   <tr key={item.id}>
-                    <td>{item.teamName}</td>
-                    <td>{item.captainName}</td>
-                    <td>{item.email}</td>
-                    <td>{item.phone}</td>
-                    <td>{item.robotName}</td>
+                    <td>
+                      <strong>{item.teamName}</strong>
+                      <p>Robot: {item.robotName}</p>
+                      <p>Team size: {item.memberCount}</p>
+                    </td>
+                    <td>
+                      <strong>{item.captainName}</strong>
+                      <p>{item.email}</p>
+                      <p>{item.phone}</p>
+                    </td>
+                    <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>{formatMembersForRobo(item)}</td>
+                    <td>
+                      <strong>{item.paymentStatus || 'unknown'}</strong>
+                      <p>{item.paymentId || '-'}</p>
+                    </td>
                     <td>{item.createdAt}</td>
                   </tr>
                 ))

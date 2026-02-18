@@ -1,55 +1,76 @@
 import { useState } from 'react';
 import { fetchJson } from '../../lib/api';
+import { collectPayment } from '../../lib/payment';
 
-type TeamCreateResponse = { teamCode: string };
+type RegisterResponse = { message: string };
 
-type JoinResponse = { message: string };
+type HackathonMember = {
+  name: string;
+  email: string;
+  phone: string;
+  gender: string;
+};
 
-type Mode = 'create' | 'join';
+const createMembers = (): HackathonMember[] =>
+  Array.from({ length: 4 }, () => ({
+    name: '',
+    email: '',
+    phone: '',
+    gender: 'female'
+  }));
 
 export default function Hackathon() {
-  const [mode, setMode] = useState<Mode>('create');
-  const [createForm, setCreateForm] = useState({
+  const [form, setForm] = useState({
     teamName: '',
-    leaderName: '',
-    leaderEmail: '',
-    leaderPhone: '',
-    leaderGender: 'female'
+    contactName: '',
+    contactEmail: '',
+    contactPhone: ''
   });
-  const [joinForm, setJoinForm] = useState({
-    teamCode: '',
-    memberName: '',
-    memberEmail: '',
-    memberPhone: '',
-    memberGender: 'female'
-  });
-  const [result, setResult] = useState<string>('');
+  const [members, setMembers] = useState<HackathonMember[]>(createMembers());
+  const [result, setResult] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setResult('');
-    try {
-      const res = await fetchJson<TeamCreateResponse>('/api/hackathon/teams', {
-        method: 'POST',
-        body: JSON.stringify(createForm)
-      });
-      setResult(`Team created successfully. Your team code is ${res.teamCode}`);
-    } catch (err) {
-      setResult(err instanceof Error ? err.message : 'Unable to create team');
-    }
+  const updateMember = (index: number, key: keyof HackathonMember, value: string) => {
+    setMembers(prev => prev.map((member, i) => (i === index ? { ...member, [key]: value } : member)));
   };
 
-  const handleJoin = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResult('');
+    setSubmitting(true);
     try {
-      const res = await fetchJson<JoinResponse>('/api/hackathon/teams/join', {
+      const femaleCount = members.filter(m => m.gender.toLowerCase() === 'female').length;
+      if (femaleCount < 1) {
+        throw new Error('At least one female member is required.');
+      }
+
+      const payment = await collectPayment(
+        'hackathon',
+        { name: form.contactName, email: form.contactEmail, contact: form.contactPhone },
+        'Hackathon'
+      );
+
+      const res = await fetchJson<RegisterResponse>('/api/hackathon/register', {
         method: 'POST',
-        body: JSON.stringify(joinForm)
+        body: JSON.stringify({
+          ...form,
+          members,
+          ...payment
+        })
       });
+
       setResult(res.message);
+      setForm({
+        teamName: '',
+        contactName: '',
+        contactEmail: '',
+        contactPhone: ''
+      });
+      setMembers(createMembers());
     } catch (err) {
-      setResult(err instanceof Error ? err.message : 'Unable to join team');
+      setResult(err instanceof Error ? err.message : 'Unable to complete registration');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -57,119 +78,80 @@ export default function Hackathon() {
     <section className="section">
       <h2 className="section-title">Unstop Hackathon</h2>
       <p className="section-subtitle">
-        Each team has 5 members and must include at least one female member. Create a team to get a code, or join using an existing code.
+        Register one team with exactly 4 members. At least one member must be female. Team code is not required.
       </p>
 
-      <div className="cards-grid" style={{ alignItems: 'center' }}>
-        <div className="card">
-          <h4>Team Access</h4>
-          <p>Choose how you want to continue.</p>
-          <select value={mode} onChange={e => setMode(e.target.value as Mode)}>
-            <option value="create">Create New Team</option>
-            <option value="join">Join Existing Team</option>
-          </select>
-          <p style={{ marginTop: '12px' }}>
-            {mode === 'create'
-              ? 'You will receive a unique team code after creating your team.'
-              : 'Enter the unique team code shared by your team leader.'}
-          </p>
-        </div>
-        <div className="card">
-          <img src="/hackathon-hero.svg" alt="Inertia Hackathon" style={{ borderRadius: '16px' }} />
-        </div>
+      <div className="card" style={{ marginTop: '24px' }}>
+        <h4>Hackathon Team Registration</h4>
+        <form className="form-grid" onSubmit={handleSubmit}>
+          <input
+            placeholder="Team name"
+            value={form.teamName}
+            onChange={e => setForm({ ...form, teamName: e.target.value })}
+            required
+          />
+          <input
+            placeholder="Contact person name"
+            value={form.contactName}
+            onChange={e => setForm({ ...form, contactName: e.target.value })}
+            required
+          />
+          <input
+            placeholder="Contact email"
+            type="email"
+            value={form.contactEmail}
+            onChange={e => setForm({ ...form, contactEmail: e.target.value })}
+            required
+          />
+          <input
+            placeholder="Contact phone"
+            value={form.contactPhone}
+            onChange={e => setForm({ ...form, contactPhone: e.target.value })}
+            required
+          />
+
+          {members.map((member, index) => (
+            <div className="card" key={index}>
+              <h4>Member {index + 1}</h4>
+              <div className="form-grid">
+                <input
+                  placeholder="Member name"
+                  value={member.name}
+                  onChange={e => updateMember(index, 'name', e.target.value)}
+                  required
+                />
+                <input
+                  placeholder="Member email"
+                  type="email"
+                  value={member.email}
+                  onChange={e => updateMember(index, 'email', e.target.value)}
+                  required
+                />
+                <input
+                  placeholder="Member phone"
+                  value={member.phone}
+                  onChange={e => updateMember(index, 'phone', e.target.value)}
+                  required
+                />
+                <select
+                  value={member.gender}
+                  onChange={e => updateMember(index, 'gender', e.target.value)}
+                >
+                  <option value="female">Female</option>
+                  <option value="male">Male</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+          ))}
+
+          <button className="btn btn-primary" type="submit" disabled={submitting}>
+            {submitting ? 'Processing Payment...' : 'Pay & Register Hackathon'}
+          </button>
+        </form>
       </div>
 
-      {mode === 'create' ? (
-        <div className="card" style={{ marginTop: '24px' }}>
-          <h4>Create Team</h4>
-          <form className="form-grid" onSubmit={handleCreate}>
-            <input
-              placeholder="Team name"
-              value={createForm.teamName}
-              onChange={e => setCreateForm({ ...createForm, teamName: e.target.value })}
-              required
-            />
-            <input
-              placeholder="Leader name"
-              value={createForm.leaderName}
-              onChange={e => setCreateForm({ ...createForm, leaderName: e.target.value })}
-              required
-            />
-            <input
-              placeholder="Leader email"
-              type="email"
-              value={createForm.leaderEmail}
-              onChange={e => setCreateForm({ ...createForm, leaderEmail: e.target.value })}
-              required
-            />
-            <input
-              placeholder="Leader phone"
-              value={createForm.leaderPhone}
-              onChange={e => setCreateForm({ ...createForm, leaderPhone: e.target.value })}
-              required
-            />
-            <select
-              value={createForm.leaderGender}
-              onChange={e => setCreateForm({ ...createForm, leaderGender: e.target.value })}
-            >
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="other">Other</option>
-            </select>
-            <button className="btn btn-primary" type="submit">
-              Create Team
-            </button>
-          </form>
-        </div>
-      ) : (
-        <div className="card" style={{ marginTop: '24px' }}>
-          <h4>Join Team</h4>
-          <form className="form-grid" onSubmit={handleJoin}>
-            <input
-              placeholder="Unique team code"
-              value={joinForm.teamCode}
-              onChange={e => setJoinForm({ ...joinForm, teamCode: e.target.value })}
-              required
-            />
-            <input
-              placeholder="Member name"
-              value={joinForm.memberName}
-              onChange={e => setJoinForm({ ...joinForm, memberName: e.target.value })}
-              required
-            />
-            <input
-              placeholder="Member email"
-              type="email"
-              value={joinForm.memberEmail}
-              onChange={e => setJoinForm({ ...joinForm, memberEmail: e.target.value })}
-              required
-            />
-            <input
-              placeholder="Member phone"
-              value={joinForm.memberPhone}
-              onChange={e => setJoinForm({ ...joinForm, memberPhone: e.target.value })}
-              required
-            />
-            <select
-              value={joinForm.memberGender}
-              onChange={e => setJoinForm({ ...joinForm, memberGender: e.target.value })}
-            >
-              <option value="female">Female</option>
-              <option value="male">Male</option>
-              <option value="other">Other</option>
-            </select>
-            <button className="btn btn-primary" type="submit">
-              Join Team
-            </button>
-          </form>
-        </div>
-      )}
-
-      {result && (
-        <div className="banner" style={{ marginTop: '24px' }}>
-          {result}
-        </div>
-      )}
+      {result && <div className="banner" style={{ marginTop: '20px' }}>{result}</div>}
     </section>
   );
 }

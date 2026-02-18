@@ -52,6 +52,8 @@ export type WorkshopRegistration = {
   name: string;
   email: string;
   phone: string;
+  paymentStatus: string;
+  paymentId: string;
   createdAt: string;
 };
 
@@ -62,16 +64,32 @@ export type RoboRegistration = {
   email: string;
   phone: string;
   robotName: string;
+  memberCount: number;
+  members: Array<{
+    name: string;
+    email: string;
+    phone: string;
+  }>;
+  paymentStatus: string;
+  paymentId: string;
   createdAt: string;
 };
 
 export type HackathonRegistration = {
   id: number;
   teamName: string;
-  teamCode: string;
-  name: string;
-  email: string;
-  phone: string;
-  gender: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  memberCount: number;
+  femaleCount: number;
+  members: Array<{
+    name: string;
+    email: string;
+    phone: string;
+    gender: string;
+  }>;
+  paymentStatus: string;
+  paymentId: string;
   createdAt: string;
 };

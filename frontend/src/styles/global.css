@@ -343,7 +343,7 @@ main {
 .gallery-grid {
   display: grid;
   gap: 18px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 24px;
 }
 
@@ -354,13 +354,16 @@ main {
   background: var(--surface-2);
   box-shadow: var(--shadow);
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
 }
 
 .gallery-card img {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  height: auto;
-  object-fit: cover;
+  height: 320px;
+  object-fit: contain;
+  object-position: center;
+  background: rgba(0, 0, 0, 0.25);
   filter: saturate(1.1);
   transition: transform 0.3s ease;
 }
@@ -486,7 +489,7 @@ textarea:focus {
 .team-grid {
   display: grid;
   gap: 20px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 24px;
 }
 
@@ -505,10 +508,10 @@ textarea:focus {
 
 .team-card img {
   width: 100%;
-  aspect-ratio: 4 / 3;
-  height: auto;
-  object-fit: cover;
-  object-position: center top;
+  height: 320px;
+  object-fit: contain;
+  object-position: center;
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .team-meta {
@@ -566,13 +569,6 @@ textarea:focus {
   .header-cta {
     width: 100%;
     justify-content: center;
-  }
-}
-
-@media (max-width: 1100px) {
-  .gallery-grid,
-  .team-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 

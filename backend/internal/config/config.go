@@ -10,6 +10,13 @@ type Config struct {
 	CloudinaryAPIKey    string
 	CloudinaryAPISecret string
 	AdminToken          string
+	RazorpayKeyID       string
+	RazorpayKeySecret   string
+	SMTPHost            string
+	SMTPPort            string
+	SMTPUser            string
+	SMTPPass            string
+	MailFrom            string
 }
 
 func Load() Config {
@@ -21,6 +28,13 @@ func Load() Config {
 		CloudinaryAPIKey:    getenv("CLOUDINARY_API_KEY", ""),
 		CloudinaryAPISecret: getenv("CLOUDINARY_API_SECRET", ""),
 		AdminToken:          getenv("ADMIN_TOKEN", "mediacell@123"),
+		RazorpayKeyID:       getenv("RAZORPAY_KEY_ID", ""),
+		RazorpayKeySecret:   getenv("RAZORPAY_KEY_SECRET", ""),
+		SMTPHost:            getenv("SMTP_HOST", ""),
+		SMTPPort:            getenv("SMTP_PORT", "587"),
+		SMTPUser:            getenv("SMTP_USER", ""),
+		SMTPPass:            getenv("SMTP_PASS", ""),
+		MailFrom:            getenv("MAIL_FROM", getenv("SMTP_USER", "")),
 	}
 }
 

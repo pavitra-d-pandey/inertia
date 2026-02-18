@@ -3,13 +3,17 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
 	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime/multipart"
 	"net/http"
+	"net/smtp"
 	"net/url"
 	"strconv"
 	"strings"
@@ -46,9 +50,8 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 
 		api.POST("/workshops/register", h.registerWorkshop)
 		api.POST("/robo-race/register", h.registerRoboRace)
-
-		api.POST("/hackathon/teams", h.createTeam)
-		api.POST("/hackathon/teams/join", h.joinTeam)
+		api.POST("/hackathon/register", h.registerHackathon)
+		api.POST("/payments/razorpay/order", h.createRazorpayOrder)
 
 		admin := api.Group("/admin")
 		admin.Use(h.adminAuth)
@@ -56,6 +59,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.POST("/glimpse", h.saveGlimpse)
 		admin.POST("/team", h.saveTeamMember)
 		admin.POST("/culture-event", h.saveCulturalEvent)
+		admin.POST("/notifications/broadcast", h.broadcastEmail)
 		admin.GET("/registrations/workshops", h.getWorkshopRegistrations)
 		admin.GET("/registrations/robo-race", h.getRoboRegistrations)
 		admin.GET("/registrations/hackathon", h.getHackathonRegistrations)
@@ -224,10 +228,13 @@ func (h *Handler) getCulturalEvents(c *gin.Context) {
 
 func (h *Handler) registerWorkshop(c *gin.Context) {
 	var req struct {
-		Name       string `json:"name"`
-		Email      string `json:"email"`
-		Phone      string `json:"phone"`
-		WorkshopID string `json:"workshopId"`
+		Name              string `json:"name"`
+		Email             string `json:"email"`
+		Phone             string `json:"phone"`
+		WorkshopID        string `json:"workshopId"`
+		RazorpayOrderID   string `json:"razorpayOrderId"`
+		RazorpayPaymentID string `json:"razorpayPaymentId"`
+		RazorpaySignature string `json:"razorpaySignature"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
@@ -235,6 +242,10 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 	}
 	if req.Name == "" || req.Email == "" || req.Phone == "" || req.WorkshopID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+	if !verifyRazorpayPayment(req.RazorpayOrderID, req.RazorpayPaymentID, req.RazorpaySignature, h.Config.RazorpayKeySecret) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment verification"})
 		return
 	}
 
@@ -259,12 +270,18 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 		"name":       req.Name,
 		"email":      req.Email,
 		"phone":      req.Phone,
-		"createdAt":  time.Now(),
+		"payment": bson.M{
+			"status":            "paid",
+			"razorpayOrderId":   req.RazorpayOrderID,
+			"razorpayPaymentId": req.RazorpayPaymentID,
+		},
+		"createdAt": time.Now(),
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save"})
 		return
 	}
+	h.sendPaymentSuccessEmail("Workshop", req.Name, req.RazorpayPaymentID, []string{req.Email})
 	c.JSON(http.StatusOK, gin.H{"message": "Workshop registration saved"})
 }
 
@@ -275,6 +292,15 @@ func (h *Handler) registerRoboRace(c *gin.Context) {
 		Email       string `json:"email"`
 		Phone       string `json:"phone"`
 		RobotName   string `json:"robotName"`
+		MemberCount int    `json:"memberCount"`
+		Members     []struct {
+			Name  string `json:"name"`
+			Email string `json:"email"`
+			Phone string `json:"phone"`
+		} `json:"members"`
+		RazorpayOrderID   string `json:"razorpayOrderId"`
+		RazorpayPaymentID string `json:"razorpayPaymentId"`
+		RazorpaySignature string `json:"razorpaySignature"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
@@ -282,6 +308,24 @@ func (h *Handler) registerRoboRace(c *gin.Context) {
 	}
 	if req.TeamName == "" || req.CaptainName == "" || req.Email == "" || req.Phone == "" || req.RobotName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+	if req.MemberCount < 1 || req.MemberCount > 20 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "member count must be between 1 and 20"})
+		return
+	}
+	if len(req.Members) != req.MemberCount {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "member details do not match member count"})
+		return
+	}
+	for _, member := range req.Members {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Email) == "" || strings.TrimSpace(member.Phone) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
+			return
+		}
+	}
+	if !verifyRazorpayPayment(req.RazorpayOrderID, req.RazorpayPaymentID, req.RazorpaySignature, h.Config.RazorpayKeySecret) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment verification"})
 		return
 	}
 
@@ -301,143 +345,193 @@ func (h *Handler) registerRoboRace(c *gin.Context) {
 		"email":       req.Email,
 		"phone":       req.Phone,
 		"robotName":   req.RobotName,
-		"createdAt":   time.Now(),
+		"memberCount": req.MemberCount,
+		"members":     req.Members,
+		"payment": bson.M{
+			"status":            "paid",
+			"razorpayOrderId":   req.RazorpayOrderID,
+			"razorpayPaymentId": req.RazorpayPaymentID,
+		},
+		"createdAt": time.Now(),
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save"})
 		return
 	}
+
+	emailCandidates := []string{req.Email}
+	for _, member := range req.Members {
+		emailCandidates = append(emailCandidates, member.Email)
+	}
+	recipientEmails := collectUniqueNormalizedEmails(emailCandidates)
+	h.sendPaymentSuccessEmail("Robo Race", req.TeamName, req.RazorpayPaymentID, recipientEmails)
+
 	c.JSON(http.StatusOK, gin.H{"message": "Robo race registration saved"})
 }
 
-func (h *Handler) createTeam(c *gin.Context) {
+func (h *Handler) registerHackathon(c *gin.Context) {
 	var req struct {
 		TeamName     string `json:"teamName"`
-		LeaderName   string `json:"leaderName"`
-		LeaderEmail  string `json:"leaderEmail"`
-		LeaderPhone  string `json:"leaderPhone"`
-		LeaderGender string `json:"leaderGender"`
+		ContactName  string `json:"contactName"`
+		ContactEmail string `json:"contactEmail"`
+		ContactPhone string `json:"contactPhone"`
+		Members      []struct {
+			Name   string `json:"name"`
+			Email  string `json:"email"`
+			Phone  string `json:"phone"`
+			Gender string `json:"gender"`
+		} `json:"members"`
+		RazorpayOrderID   string `json:"razorpayOrderId"`
+		RazorpayPaymentID string `json:"razorpayPaymentId"`
+		RazorpaySignature string `json:"razorpaySignature"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.TeamName == "" || req.LeaderName == "" || req.LeaderEmail == "" || req.LeaderPhone == "" {
+	if req.TeamName == "" || req.ContactName == "" || req.ContactEmail == "" || req.ContactPhone == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+	if len(req.Members) != 4 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "hackathon requires exactly 4 members"})
+		return
+	}
+	femaleCount := 0
+	for _, member := range req.Members {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Email) == "" || strings.TrimSpace(member.Phone) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
+			return
+		}
+		if strings.ToLower(strings.TrimSpace(member.Gender)) == "female" {
+			femaleCount++
+		}
+	}
+	if femaleCount < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one female member is required"})
+		return
+	}
+	if !verifyRazorpayPayment(req.RazorpayOrderID, req.RazorpayPaymentID, req.RazorpaySignature, h.Config.RazorpayKeySecret) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment verification"})
 		return
 	}
 
 	ctx, cancel := h.ctx()
 	defer cancel()
 
-	teamCode := generateTeamCode(req.TeamName)
-	teamID, err := h.nextID(ctx, "hackathon_teams")
+	id, err := h.nextID(ctx, "hackathon_registrations")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "team create failed"})
-		return
-	}
-	memberID, err := h.nextID(ctx, "hackathon_members")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "leader save failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
 		return
 	}
 
-	_, err = h.DB.Collection("hackathon_teams").InsertOne(ctx, bson.M{
-		"id":        teamID,
-		"teamName":  req.TeamName,
-		"teamCode":  teamCode,
+	_, err = h.DB.Collection("hackathon_registrations").InsertOne(ctx, bson.M{
+		"id":           id,
+		"teamName":     req.TeamName,
+		"contactName":  req.ContactName,
+		"contactEmail": req.ContactEmail,
+		"contactPhone": req.ContactPhone,
+		"members":      req.Members,
+		"memberCount":  len(req.Members),
+		"femaleCount":  femaleCount,
+		"payment": bson.M{
+			"status":            "paid",
+			"razorpayOrderId":   req.RazorpayOrderID,
+			"razorpayPaymentId": req.RazorpayPaymentID,
+		},
 		"createdAt": time.Now(),
 	})
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "team create failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
 		return
 	}
 
-	_, err = h.DB.Collection("hackathon_members").InsertOne(ctx, bson.M{
-		"id":        memberID,
-		"teamId":    teamID,
-		"name":      req.LeaderName,
-		"email":     req.LeaderEmail,
-		"phone":     req.LeaderPhone,
-		"gender":    strings.ToLower(req.LeaderGender),
-		"createdAt": time.Now(),
-	})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "leader save failed"})
-		return
+	emailCandidates := []string{req.ContactEmail}
+	for _, member := range req.Members {
+		emailCandidates = append(emailCandidates, member.Email)
 	}
-	c.JSON(http.StatusOK, gin.H{"teamCode": teamCode})
+	recipientEmails := collectUniqueNormalizedEmails(emailCandidates)
+	h.sendPaymentSuccessEmail("Hackathon", req.TeamName, req.RazorpayPaymentID, recipientEmails)
+
+	c.JSON(http.StatusOK, gin.H{"message": "Hackathon registration saved"})
 }
 
-func (h *Handler) joinTeam(c *gin.Context) {
+func (h *Handler) createRazorpayOrder(c *gin.Context) {
 	var req struct {
-		TeamCode     string `json:"teamCode"`
-		MemberName   string `json:"memberName"`
-		MemberEmail  string `json:"memberEmail"`
-		MemberPhone  string `json:"memberPhone"`
-		MemberGender string `json:"memberGender"`
+		Event       string `json:"event"`
+		MemberCount int    `json:"memberCount"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.TeamCode == "" || req.MemberName == "" || req.MemberEmail == "" || req.MemberPhone == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+	if h.Config.RazorpayKeyID == "" || h.Config.RazorpayKeySecret == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "razorpay keys are not configured"})
 		return
 	}
 
-	ctx, cancel := h.ctx()
-	defer cancel()
-
-	var team struct {
-		ID int64 `bson:"id"`
-	}
-	err := h.DB.Collection("hackathon_teams").FindOne(ctx, bson.M{"teamCode": req.TeamCode}).Decode(&team)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "team not found"})
+	event := strings.ToLower(strings.TrimSpace(req.Event))
+	var amount int64
+	switch event {
+	case "workshops":
+		amount = 30000
+	case "hackathon":
+		amount = 40000
+	case "robo-race":
+		if req.MemberCount < 1 || req.MemberCount > 20 {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "member count must be between 1 and 20 for robo-race"})
+			return
+		}
+		amount = int64(req.MemberCount) * 10000
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event"})
 		return
 	}
 
-	count, err := h.DB.Collection("hackathon_members").CountDocuments(ctx, bson.M{"teamId": team.ID})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
-		return
-	}
-	if count >= 5 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "team already full"})
-		return
-	}
-
-	femaleCount, err := h.DB.Collection("hackathon_members").CountDocuments(ctx, bson.M{"teamId": team.ID, "gender": "female"})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "db error"})
-		return
-	}
-	if count == 4 && femaleCount < 1 && strings.ToLower(req.MemberGender) != "female" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "final member must be female to satisfy team rule"})
-		return
-	}
-
-	memberID, err := h.nextID(ctx, "hackathon_members")
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not add member"})
-		return
-	}
-
-	_, err = h.DB.Collection("hackathon_members").InsertOne(ctx, bson.M{
-		"id":        memberID,
-		"teamId":    team.ID,
-		"name":      req.MemberName,
-		"email":     req.MemberEmail,
-		"phone":     req.MemberPhone,
-		"gender":    strings.ToLower(req.MemberGender),
-		"createdAt": time.Now(),
+	body, _ := json.Marshal(map[string]any{
+		"amount":          amount,
+		"currency":        "INR",
+		"receipt":         fmt.Sprintf("%s-%d", event, time.Now().UnixNano()),
+		"payment_capture": 1,
 	})
+	reqRzp, err := http.NewRequest(http.MethodPost, "https://api.razorpay.com/v1/orders", bytes.NewReader(body))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not add member"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create payment order"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Member added to team"})
+	reqRzp.SetBasicAuth(h.Config.RazorpayKeyID, h.Config.RazorpayKeySecret)
+	reqRzp.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 20 * time.Second}
+	resp, err := client.Do(reqRzp)
+	if err != nil {
+		c.JSON(http.StatusBadGateway, gin.H{"error": "payment provider unavailable"})
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		payload, _ := io.ReadAll(resp.Body)
+		c.JSON(http.StatusBadGateway, gin.H{"error": fmt.Sprintf("payment order failed: %s", string(payload))})
+		return
+	}
+
+	var order struct {
+		ID       string `json:"id"`
+		Amount   int64  `json:"amount"`
+		Currency string `json:"currency"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&order); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not parse payment response"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"key":      h.Config.RazorpayKeyID,
+		"orderId":  order.ID,
+		"amount":   order.Amount,
+		"currency": order.Currency,
+	})
 }
 
 func (h *Handler) adminAuth(c *gin.Context) {
@@ -615,21 +709,27 @@ func (h *Handler) getWorkshopRegistrations(c *gin.Context) {
 	var items []models.WorkshopRegistration
 	for cursor.Next(ctx) {
 		var reg struct {
-			ID         int64     `bson:"id"`
-			WorkshopID int64     `bson:"workshopId"`
-			Name       string    `bson:"name"`
-			Email      string    `bson:"email"`
-			Phone      string    `bson:"phone"`
-			CreatedAt  time.Time `bson:"createdAt"`
+			ID         int64  `bson:"id"`
+			WorkshopID int64  `bson:"workshopId"`
+			Name       string `bson:"name"`
+			Email      string `bson:"email"`
+			Phone      string `bson:"phone"`
+			Payment    struct {
+				Status            string `bson:"status"`
+				RazorpayPaymentID string `bson:"razorpayPaymentId"`
+			} `bson:"payment"`
+			CreatedAt time.Time `bson:"createdAt"`
 		}
 		if err := cursor.Decode(&reg); err == nil {
 			items = append(items, models.WorkshopRegistration{
-				ID:        reg.ID,
-				Workshop:  workshopByID[reg.WorkshopID],
-				Name:      reg.Name,
-				Email:     reg.Email,
-				Phone:     reg.Phone,
-				CreatedAt: reg.CreatedAt.Format("2006-01-02 15:04:05"),
+				ID:            reg.ID,
+				Workshop:      workshopByID[reg.WorkshopID],
+				Name:          reg.Name,
+				Email:         reg.Email,
+				Phone:         reg.Phone,
+				PaymentStatus: reg.Payment.Status,
+				PaymentID:     reg.Payment.RazorpayPaymentID,
+				CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}
@@ -650,23 +750,46 @@ func (h *Handler) getRoboRegistrations(c *gin.Context) {
 	var items []models.RoboRegistration
 	for cursor.Next(ctx) {
 		var reg struct {
-			ID          int64     `bson:"id"`
-			TeamName    string    `bson:"teamName"`
-			CaptainName string    `bson:"captainName"`
-			Email       string    `bson:"email"`
-			Phone       string    `bson:"phone"`
-			RobotName   string    `bson:"robotName"`
-			CreatedAt   time.Time `bson:"createdAt"`
+			ID          int64  `bson:"id"`
+			TeamName    string `bson:"teamName"`
+			CaptainName string `bson:"captainName"`
+			Email       string `bson:"email"`
+			Phone       string `bson:"phone"`
+			RobotName   string `bson:"robotName"`
+			MemberCount int    `bson:"memberCount"`
+			Members     []struct {
+				Name  string `bson:"name"`
+				Email string `bson:"email"`
+				Phone string `bson:"phone"`
+			} `bson:"members"`
+			Payment struct {
+				Status            string `bson:"status"`
+				RazorpayOrderID   string `bson:"razorpayOrderId"`
+				RazorpayPaymentID string `bson:"razorpayPaymentId"`
+			} `bson:"payment"`
+			CreatedAt time.Time `bson:"createdAt"`
 		}
 		if err := cursor.Decode(&reg); err == nil {
+			members := make([]models.RoboMember, 0, len(reg.Members))
+			for _, m := range reg.Members {
+				members = append(members, models.RoboMember{
+					Name:  m.Name,
+					Email: m.Email,
+					Phone: m.Phone,
+				})
+			}
 			items = append(items, models.RoboRegistration{
-				ID:          reg.ID,
-				TeamName:    reg.TeamName,
-				CaptainName: reg.CaptainName,
-				Email:       reg.Email,
-				Phone:       reg.Phone,
-				RobotName:   reg.RobotName,
-				CreatedAt:   reg.CreatedAt.Format("2006-01-02 15:04:05"),
+				ID:            reg.ID,
+				TeamName:      reg.TeamName,
+				CaptainName:   reg.CaptainName,
+				Email:         reg.Email,
+				Phone:         reg.Phone,
+				RobotName:     reg.RobotName,
+				MemberCount:   maxInt(reg.MemberCount, len(members)),
+				Members:       members,
+				PaymentStatus: reg.Payment.Status,
+				PaymentID:     reg.Payment.RazorpayPaymentID,
+				CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}
@@ -677,29 +800,7 @@ func (h *Handler) getHackathonRegistrations(c *gin.Context) {
 	ctx, cancel := h.ctx()
 	defer cancel()
 
-	teamByID := map[int64]struct {
-		name string
-		code string
-	}{}
-	teamCursor, err := h.DB.Collection("hackathon_teams").Find(ctx, bson.D{})
-	if err == nil {
-		defer teamCursor.Close(ctx)
-		for teamCursor.Next(ctx) {
-			var team struct {
-				ID       int64  `bson:"id"`
-				TeamName string `bson:"teamName"`
-				TeamCode string `bson:"teamCode"`
-			}
-			if decodeErr := teamCursor.Decode(&team); decodeErr == nil {
-				teamByID[team.ID] = struct {
-					name string
-					code string
-				}{name: team.TeamName, code: team.TeamCode}
-			}
-		}
-	}
-
-	cursor, err := h.DB.Collection("hackathon_members").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	cursor, err := h.DB.Collection("hackathon_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
 	if err != nil {
 		c.JSON(http.StatusOK, []models.HackathonRegistration{})
 		return
@@ -709,29 +810,272 @@ func (h *Handler) getHackathonRegistrations(c *gin.Context) {
 	var items []models.HackathonRegistration
 	for cursor.Next(ctx) {
 		var reg struct {
-			ID        int64     `bson:"id"`
-			TeamID    int64     `bson:"teamId"`
-			Name      string    `bson:"name"`
-			Email     string    `bson:"email"`
-			Phone     string    `bson:"phone"`
-			Gender    string    `bson:"gender"`
+			ID           int64  `bson:"id"`
+			TeamName     string `bson:"teamName"`
+			ContactName  string `bson:"contactName"`
+			ContactEmail string `bson:"contactEmail"`
+			ContactPhone string `bson:"contactPhone"`
+			MemberCount  int    `bson:"memberCount"`
+			FemaleCount  int    `bson:"femaleCount"`
+			Members      []struct {
+				Name   string `bson:"name"`
+				Email  string `bson:"email"`
+				Phone  string `bson:"phone"`
+				Gender string `bson:"gender"`
+			} `bson:"members"`
+			Payment struct {
+				Status            string `bson:"status"`
+				RazorpayOrderID   string `bson:"razorpayOrderId"`
+				RazorpayPaymentID string `bson:"razorpayPaymentId"`
+			} `bson:"payment"`
 			CreatedAt time.Time `bson:"createdAt"`
 		}
 		if err := cursor.Decode(&reg); err == nil {
-			team := teamByID[reg.TeamID]
+			members := make([]models.HackathonMember, 0, len(reg.Members))
+			for _, m := range reg.Members {
+				members = append(members, models.HackathonMember{
+					Name:   m.Name,
+					Email:  m.Email,
+					Phone:  m.Phone,
+					Gender: m.Gender,
+				})
+			}
 			items = append(items, models.HackathonRegistration{
-				ID:        reg.ID,
-				TeamName:  team.name,
-				TeamCode:  team.code,
-				Name:      reg.Name,
-				Email:     reg.Email,
-				Phone:     reg.Phone,
-				Gender:    reg.Gender,
-				CreatedAt: reg.CreatedAt.Format("2006-01-02 15:04:05"),
+				ID:            reg.ID,
+				TeamName:      reg.TeamName,
+				ContactName:   reg.ContactName,
+				ContactEmail:  reg.ContactEmail,
+				ContactPhone:  reg.ContactPhone,
+				MemberCount:   maxInt(reg.MemberCount, len(members)),
+				FemaleCount:   reg.FemaleCount,
+				Members:       members,
+				PaymentStatus: reg.Payment.Status,
+				PaymentID:     reg.Payment.RazorpayPaymentID,
+				CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}
 	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) broadcastEmail(c *gin.Context) {
+	var req struct {
+		Audience string `json:"audience"`
+		Subject  string `json:"subject"`
+		Message  string `json:"message"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	audience := strings.ToLower(strings.TrimSpace(req.Audience))
+	subject := strings.TrimSpace(req.Subject)
+	message := strings.TrimSpace(req.Message)
+	if audience == "" || subject == "" || message == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	recipients, err := h.collectAudienceEmails(ctx, audience)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not prepare recipients"})
+		return
+	}
+	if len(recipients) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no recipients found for selected audience"})
+		return
+	}
+
+	if err := h.sendEmail(subject, message, recipients); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "Email sent successfully",
+		"audience": audience,
+		"count":    len(recipients),
+	})
+}
+
+func (h *Handler) collectAudienceEmails(ctx context.Context, audience string) ([]string, error) {
+	switch audience {
+	case "workshops":
+		return h.collectWorkshopEmails(ctx)
+	case "hackathon":
+		return h.collectHackathonEmails(ctx)
+	case "robo-race":
+		return h.collectRoboRaceEmails(ctx)
+	case "all":
+		workshop, err := h.collectWorkshopEmails(ctx)
+		if err != nil {
+			return nil, err
+		}
+		hackathon, err := h.collectHackathonEmails(ctx)
+		if err != nil {
+			return nil, err
+		}
+		robo, err := h.collectRoboRaceEmails(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return collectUniqueNormalizedEmails(append(append(workshop, hackathon...), robo...)), nil
+	default:
+		return nil, fmt.Errorf("invalid audience")
+	}
+}
+
+func (h *Handler) collectWorkshopEmails(ctx context.Context) ([]string, error) {
+	cursor, err := h.DB.Collection("workshop_registrations").Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var emails []string
+	for cursor.Next(ctx) {
+		var reg struct {
+			Email string `bson:"email"`
+		}
+		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
+			emails = append(emails, reg.Email)
+		}
+	}
+	return collectUniqueNormalizedEmails(emails), nil
+}
+
+func (h *Handler) collectHackathonEmails(ctx context.Context) ([]string, error) {
+	var emails []string
+
+	cursor, err := h.DB.Collection("hackathon_registrations").Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+	for cursor.Next(ctx) {
+		var reg struct {
+			ContactEmail string `bson:"contactEmail"`
+			Members      []struct {
+				Email string `bson:"email"`
+			} `bson:"members"`
+		}
+		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
+			emails = append(emails, reg.ContactEmail)
+			for _, m := range reg.Members {
+				emails = append(emails, m.Email)
+			}
+		}
+	}
+
+	legacyCursor, legacyErr := h.DB.Collection("hackathon_members").Find(ctx, bson.D{})
+	if legacyErr == nil {
+		defer legacyCursor.Close(ctx)
+		for legacyCursor.Next(ctx) {
+			var reg struct {
+				Email string `bson:"email"`
+			}
+			if decodeErr := legacyCursor.Decode(&reg); decodeErr == nil {
+				emails = append(emails, reg.Email)
+			}
+		}
+	}
+
+	return collectUniqueNormalizedEmails(emails), nil
+}
+
+func (h *Handler) collectRoboRaceEmails(ctx context.Context) ([]string, error) {
+	cursor, err := h.DB.Collection("robo_registrations").Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var emails []string
+	for cursor.Next(ctx) {
+		var reg struct {
+			Email   string `bson:"email"`
+			Members []struct {
+				Email string `bson:"email"`
+			} `bson:"members"`
+		}
+		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
+			emails = append(emails, reg.Email)
+			for _, m := range reg.Members {
+				emails = append(emails, m.Email)
+			}
+		}
+	}
+	return collectUniqueNormalizedEmails(emails), nil
+}
+
+func verifyRazorpayPayment(orderID, paymentID, signature, keySecret string) bool {
+	orderID = strings.TrimSpace(orderID)
+	paymentID = strings.TrimSpace(paymentID)
+	signature = strings.TrimSpace(signature)
+	keySecret = strings.TrimSpace(keySecret)
+	if orderID == "" || paymentID == "" || signature == "" || keySecret == "" {
+		return false
+	}
+	payload := orderID + "|" + paymentID
+	h := hmac.New(sha256.New, []byte(keySecret))
+	h.Write([]byte(payload))
+	expected := hex.EncodeToString(h.Sum(nil))
+	return hmac.Equal([]byte(expected), []byte(signature))
+}
+
+func collectUniqueNormalizedEmails(input []string) []string {
+	seen := map[string]struct{}{}
+	out := make([]string, 0, len(input))
+	for _, email := range input {
+		clean := strings.ToLower(strings.TrimSpace(email))
+		if clean == "" {
+			continue
+		}
+		if _, exists := seen[clean]; exists {
+			continue
+		}
+		seen[clean] = struct{}{}
+		out = append(out, clean)
+	}
+	return out
+}
+
+func (h *Handler) sendPaymentSuccessEmail(eventName, teamName, paymentID string, recipients []string) {
+	subject := fmt.Sprintf("%s Registration Confirmed", eventName)
+	body := fmt.Sprintf(
+		"Your payment and registration are confirmed.\r\n\r\nEvent: %s\r\nTeam: %s\r\nPayment ID: %s\r\n\r\nThank you for registering.",
+		eventName,
+		teamName,
+		paymentID,
+	)
+	if err := h.sendEmail(subject, body, recipients); err != nil {
+		log.Printf("payment success mail failed: %v", err)
+	}
+}
+
+func (h *Handler) sendEmail(subject, body string, recipients []string) error {
+	if len(recipients) == 0 || h.Config.SMTPHost == "" || h.Config.SMTPPort == "" || h.Config.MailFrom == "" {
+		return nil
+	}
+
+	msg := "From: " + h.Config.MailFrom + "\r\n" +
+		"To: " + strings.Join(recipients, ",") + "\r\n" +
+		"Subject: " + subject + "\r\n\r\n" +
+		body + "\r\n"
+
+	addr := h.Config.SMTPHost + ":" + h.Config.SMTPPort
+	var auth smtp.Auth
+	if h.Config.SMTPUser != "" || h.Config.SMTPPass != "" {
+		auth = smtp.PlainAuth("", h.Config.SMTPUser, h.Config.SMTPPass, h.Config.SMTPHost)
+	}
+
+	if err := smtp.SendMail(addr, auth, h.Config.MailFrom, recipients, []byte(msg)); err != nil {
+		return err
+	}
+	return nil
 }
 
 func uploadToCloudinary(file *multipart.FileHeader, cfg config.Config) (string, error) {
@@ -814,6 +1158,13 @@ func sortStrings(values []string) {
 			}
 		}
 	}
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func generateTeamCode(seed string) string {

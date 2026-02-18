@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchJson } from '../../lib/api';
+import { collectPayment } from '../../lib/payment';
 
 type Workshop = { id: number; title: string; description: string };
 
@@ -20,6 +21,7 @@ export default function Workshops() {
     workshopId: String(fallbackWorkshops[0].id)
   });
   const [result, setResult] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchJson<Workshop[]>('/api/workshops')
@@ -35,14 +37,31 @@ export default function Workshops() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResult('');
+    setSubmitting(true);
     try {
+      const payment = await collectPayment(
+        'workshops',
+        { name: form.name, email: form.email, contact: form.phone },
+        'Workshop'
+      );
       const res = await fetchJson<RegisterResponse>('/api/workshops/register', {
         method: 'POST',
-        body: JSON.stringify(form)
+        body: JSON.stringify({
+          ...form,
+          ...payment
+        })
       });
       setResult(res.message);
+      setForm(prev => ({
+        name: '',
+        email: '',
+        phone: '',
+        workshopId: prev.workshopId
+      }));
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to register');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -92,8 +111,8 @@ export default function Workshops() {
               </option>
             ))}
           </select>
-          <button className="btn btn-primary" type="submit">
-            Register Workshop
+          <button className="btn btn-primary" type="submit" disabled={submitting}>
+            {submitting ? 'Processing Payment...' : 'Pay & Register Workshop'}
           </button>
         </form>
         {result && <div className="banner" style={{ marginTop: '18px' }}>{result}</div>}

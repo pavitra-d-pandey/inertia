@@ -72,9 +72,9 @@ func SeedDefaults(database *mongo.Database) error {
 	}
 	if eventsCount == 0 {
 		_, err = events.InsertMany(ctx, []interface{}{
-			bson.M{"id": 1, "slug": "hackathon", "title": "Unstop Hackathon", "description": "5-member teams with at least one female member. Create or join via team code.", "dateLabel": "48 Hours", "ctaLabel": "Create/Join Team", "sortOrder": 1},
+			bson.M{"id": 1, "slug": "hackathon", "title": "Unstop Hackathon", "description": "4-member teams with at least one female member. Single-step registration with Razorpay payment.", "dateLabel": "48 Hours", "ctaLabel": "Register Team", "sortOrder": 1},
 			bson.M{"id": 2, "slug": "workshops", "title": "AI & ML Workshops", "description": "Hands-on labs with expert mentors. Payments handled via Razorpay.", "dateLabel": "2 Days", "ctaLabel": "Register Workshop", "sortOrder": 2},
-			bson.M{"id": 3, "slug": "robo-race", "title": "Robo Race", "description": "Speed, precision, and control on our custom track.", "dateLabel": "Final Day", "ctaLabel": "Register Robot", "sortOrder": 3},
+			bson.M{"id": 3, "slug": "robo-race", "title": "Robo Race", "description": "Choose team size, add members, and complete registration with Razorpay.", "dateLabel": "Final Day", "ctaLabel": "Register Robot", "sortOrder": 3},
 		})
 		if err != nil {
 			return fmt.Errorf("events seed: %w", err)
@@ -88,9 +88,9 @@ func SeedDefaults(database *mongo.Database) error {
 	}
 	if faqCount == 0 {
 		_, err = faqs.InsertMany(ctx, []interface{}{
-			bson.M{"id": 1, "question": "How do hackathon teams work?", "answer": "Create a team to get a code, or join an existing team with their code.", "sortOrder": 1},
+			bson.M{"id": 1, "question": "How do hackathon teams work?", "answer": "Hackathon registration is a single-step form for exactly 4 members.", "sortOrder": 1},
 			bson.M{"id": 2, "question": "Do workshops require payment?", "answer": "Yes. Workshop registrations will be paid via Razorpay.", "sortOrder": 2},
-			bson.M{"id": 3, "question": "What is the team size rule?", "answer": "Each team has 5 members and must include at least one female member.", "sortOrder": 3},
+			bson.M{"id": 3, "question": "What is the team size rule?", "answer": "Each hackathon team has 4 members and must include at least one female member.", "sortOrder": 3},
 			bson.M{"id": 4, "question": "Where is the venue?", "answer": "All events take place at the Jabalpur Engineering College campus.", "sortOrder": 4},
 			bson.M{"id": 5, "question": "Can I register for multiple events?", "answer": "Yes, you can register for workshops, Robo Race, and the hackathon independently.", "sortOrder": 5},
 			bson.M{"id": 6, "question": "How do I get updates?", "answer": "Follow official Inertia channels and watch the website for schedule updates.", "sortOrder": 6},

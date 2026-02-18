@@ -23,9 +23,9 @@ const fallbackEvents: EventInfo[] = [
     id: 1,
     slug: 'hackathon',
     title: 'Unstop Hackathon',
-    description: '5-member teams with at least one female member. Create or join teams with a code.',
+    description: '4-member teams with at least one female member. Complete registration in one step.',
     dateLabel: '48 Hours',
-    ctaLabel: 'Create/Join Team'
+    ctaLabel: 'Register Team'
   },
   {
     id: 2,
@@ -46,9 +46,9 @@ const fallbackEvents: EventInfo[] = [
 ];
 
 const fallbackFaqs: FAQ[] = [
-  { id: 1, question: 'How do hackathon teams work?', answer: 'Create a team to get a code, or join an existing team with their code.' },
+  { id: 1, question: 'How do hackathon teams work?', answer: 'Hackathon registration is a single-step form for exactly 4 members.' },
   { id: 2, question: 'Do workshops require payment?', answer: 'Payment details will be shared during registration updates.' },
-  { id: 3, question: 'What is the team size rule?', answer: 'A team has 5 members and must include at least one female member.' },
+  { id: 3, question: 'What is the team size rule?', answer: 'A hackathon team has 4 members and must include at least one female member.' },
   { id: 4, question: 'Where is the venue?', answer: 'All events take place at the Jabalpur Engineering College campus.' },
   { id: 5, question: 'Can I register for multiple events?', answer: 'Yes, you can register for workshops, Robo Race, and the hackathon independently.' }
 ];

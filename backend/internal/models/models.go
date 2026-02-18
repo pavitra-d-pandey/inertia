@@ -55,31 +55,53 @@ type CulturalEvent struct {
 }
 
 type WorkshopRegistration struct {
-	ID        int64  `json:"id"`
-	Workshop  string `json:"workshop"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	Phone     string `json:"phone"`
-	CreatedAt string `json:"createdAt"`
+	ID            int64  `json:"id"`
+	Workshop      string `json:"workshop"`
+	Name          string `json:"name"`
+	Email         string `json:"email"`
+	Phone         string `json:"phone"`
+	PaymentStatus string `json:"paymentStatus"`
+	PaymentID     string `json:"paymentId"`
+	CreatedAt     string `json:"createdAt"`
 }
 
 type RoboRegistration struct {
-	ID          int64  `json:"id"`
-	TeamName    string `json:"teamName"`
-	CaptainName string `json:"captainName"`
-	Email       string `json:"email"`
-	Phone       string `json:"phone"`
-	RobotName   string `json:"robotName"`
-	CreatedAt   string `json:"createdAt"`
+	ID            int64        `json:"id"`
+	TeamName      string       `json:"teamName"`
+	CaptainName   string       `json:"captainName"`
+	Email         string       `json:"email"`
+	Phone         string       `json:"phone"`
+	RobotName     string       `json:"robotName"`
+	MemberCount   int          `json:"memberCount"`
+	Members       []RoboMember `json:"members"`
+	PaymentStatus string       `json:"paymentStatus"`
+	PaymentID     string       `json:"paymentId"`
+	CreatedAt     string       `json:"createdAt"`
 }
 
 type HackathonRegistration struct {
-	ID        int64  `json:"id"`
-	TeamName  string `json:"teamName"`
-	TeamCode  string `json:"teamCode"`
-	Name      string `json:"name"`
-	Email     string `json:"email"`
-	Phone     string `json:"phone"`
-	Gender    string `json:"gender"`
-	CreatedAt string `json:"createdAt"`
+	ID            int64             `json:"id"`
+	TeamName      string            `json:"teamName"`
+	ContactName   string            `json:"contactName"`
+	ContactEmail  string            `json:"contactEmail"`
+	ContactPhone  string            `json:"contactPhone"`
+	MemberCount   int               `json:"memberCount"`
+	FemaleCount   int               `json:"femaleCount"`
+	Members       []HackathonMember `json:"members"`
+	PaymentStatus string            `json:"paymentStatus"`
+	PaymentID     string            `json:"paymentId"`
+	CreatedAt     string            `json:"createdAt"`
+}
+
+type RoboMember struct {
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Phone string `json:"phone"`
+}
+
+type HackathonMember struct {
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Phone  string `json:"phone"`
+	Gender string `json:"gender"`
 }
