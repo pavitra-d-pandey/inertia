@@ -1,4 +1,4 @@
-import { Link, NavLink } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -13,6 +13,11 @@ const navItems = [
 ];
 
 export default function Header() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const selectedPath = location.pathname === '/robo-race' ? '/kinetic-showdown' : location.pathname;
+
   return (
     <header className="site-header">
       <div className="brand">
@@ -31,6 +36,20 @@ export default function Header() {
           </NavLink>
         ))}
       </nav>
+      <div className="mobile-nav">
+        <select
+          className="mobile-nav-select"
+          aria-label="Select page"
+          value={selectedPath}
+          onChange={e => navigate(e.target.value)}
+        >
+          {navItems.map(item => (
+            <option key={item.to} value={item.to}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </div>
       <div className="header-cta">
         <Link className="btn btn-primary" to="/register">
           Register Now

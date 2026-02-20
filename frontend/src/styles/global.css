@@ -143,6 +143,20 @@ main {
   scrollbar-width: none;
 }
 
+.mobile-nav {
+  display: none;
+}
+
+.mobile-nav-select {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(8, 10, 16, 0.9);
+  color: var(--ink);
+  padding: 10px 12px;
+  font-weight: 600;
+}
+
 .nav-links::-webkit-scrollbar {
   display: none;
 }
@@ -612,6 +626,31 @@ textarea:focus {
 }
 
 @media (max-width: 700px) {
+  .site-header {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    white-space: normal;
+    padding: 14px 5vw;
+  }
+
+  .brand {
+    justify-content: center;
+  }
+
+  .nav-links {
+    display: none;
+  }
+
+  .mobile-nav {
+    display: block;
+    width: 100%;
+  }
+
+  .header-cta {
+    width: 100%;
+    justify-content: center;
+  }
+
   .hero {
     padding: 90px 8vw 120px;
   }
