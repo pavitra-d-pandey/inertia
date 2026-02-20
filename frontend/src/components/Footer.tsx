@@ -16,7 +16,7 @@ export default function Footer() {
         </div>
         <div>
           <p className="footer-title">Events</p>
-          <p className="footer-text">Cube# Hackathon, Workshops, Kinetic Showdown, eSports, Open Mic</p>
+          <p className="footer-text">CodeHunt Hackathon, Workshops, Kinetic Showdown, eSports, Open Mic</p>
           <p className="footer-text">Culture Fest and gallery highlights</p>
         </div>
       </div>

@@ -2,7 +2,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 
 const navItems = [
   { to: '/', label: 'Home' },
-  { to: '/hackathon', label: 'Cube# Hackathon' },
+  { to: '/hackathon', label: 'CodeHunt Hackathon' },
   { to: '/workshops', label: 'Workshops' },
   { to: '/kinetic-showdown', label: 'Kinetic Showdown' },
   { to: '/esports', label: 'eSports' },

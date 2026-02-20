@@ -6,11 +6,11 @@ import { EventInfo, FAQ, GalleryItem, LandingContent } from '../../lib/types';
 const fallbackLanding: LandingContent = {
   heroTitle: 'INERTIA 2.0: JEC Annual Tech Fest',
   heroSubtitle:
-    'The flagship annual festival at Jabalpur Engineering College, featuring Cube# hackathon, workshops, kinetic showdown, esports, and culture.',
+    'The flagship annual festival at Jabalpur Engineering College, featuring CodeHunt Hackathon, Workshops, Kinetic Showdown, eSports, Open Mic, and culture.',
   dates: 'Coming 2026',
   location: 'Jabalpur Engineering College, Jabalpur, Madhya Pradesh',
   highlights: [
-    'Cube# Hackathon',
+    'CodeHunt Hackathon',
     'Workshop Series',
     'Kinetic Showdown',
     'eSports Arena',
@@ -23,8 +23,8 @@ const fallbackEvents: EventInfo[] = [
   {
     id: 1,
     slug: 'hackathon',
-    title: 'Cube# Hackathon',
-    description: '12-hour build sprint with problem statements and rapid prototyping.',
+    title: 'CodeHunt Hackathon',
+    description: '12-hour hackathon, INR 300/team, on-spot problem statements, and internship interview opportunities.',
     dateLabel: '12 Hours',
     ctaLabel: 'Register Hackathon'
   },
@@ -32,7 +32,7 @@ const fallbackEvents: EventInfo[] = [
     id: 2,
     slug: 'workshops',
     title: 'Workshops',
-    description: 'Hands-on labs, experts, and project builds.',
+    description: 'Hands-on sessions with mentors and practical implementation.',
     dateLabel: '2 Days',
     ctaLabel: 'Register Workshop'
   },
@@ -63,12 +63,44 @@ const fallbackEvents: EventInfo[] = [
 ];
 
 const fallbackFaqs: FAQ[] = [
-  { id: 1, question: 'How long is Cube# hackathon?', answer: 'Cube# is a 12-hour hackathon.' },
-  { id: 2, question: 'Do workshops require payment?', answer: 'Payment details will be shared during registration updates.' },
+  { id: 1, question: 'How long is CodeHunt Hackathon?', answer: 'CodeHunt is a 12-hour hackathon.' },
+  { id: 2, question: 'What is the hackathon registration fee?', answer: 'The CodeHunt registration fee is INR 300 per team.' },
   { id: 3, question: 'What are the eSports team sizes?', answer: 'Valorant needs 5 players, BGMI needs 4 players.' },
-  { id: 4, question: 'Where is the venue?', answer: 'All events take place at the Jabalpur Engineering College campus.' },
-  { id: 5, question: 'Can I register for multiple events?', answer: 'Yes, you can register for hackathon, workshops, kinetic showdown, esports, and open mic.' }
+  { id: 4, question: 'When are hackathon problem statements announced?', answer: 'Problem statements are revealed on the spot.' },
+  { id: 5, question: 'Can I register for multiple events?', answer: 'Yes, you can register for Hackathon, Workshops, Kinetic Showdown, eSports, and Open Mic.' }
 ];
+
+function normalizeEvents(data: EventInfo[]): EventInfo[] {
+  const normalized = data.map(event => {
+    if (event.slug === 'robo-race') {
+      return {
+        ...event,
+        slug: 'kinetic-showdown',
+        title: 'Kinetic Showdown',
+        ctaLabel: 'Register Team'
+      };
+    }
+    if (event.slug === 'hackathon') {
+      return {
+        ...event,
+        title: 'CodeHunt Hackathon'
+      };
+    }
+    return event;
+  });
+
+  const hasOpenMic = normalized.some(event => event.slug === 'open-mic');
+  const hasEsports = normalized.some(event => event.slug === 'esports');
+
+  const merged = [...normalized];
+  if (!hasEsports) {
+    merged.push(fallbackEvents.find(event => event.slug === 'esports') as EventInfo);
+  }
+  if (!hasOpenMic) {
+    merged.push(fallbackEvents.find(event => event.slug === 'open-mic') as EventInfo);
+  }
+  return merged;
+}
 
 export default function Home() {
   const [landing, setLanding] = useState<LandingContent>(fallbackLanding);
@@ -87,7 +119,7 @@ export default function Home() {
       )
       .catch(() => null);
     fetchJson<EventInfo[]>('/api/events')
-      .then(data => setEvents(Array.isArray(data) && data.length > 0 ? data : fallbackEvents))
+      .then(data => setEvents(Array.isArray(data) && data.length > 0 ? normalizeEvents(data) : fallbackEvents))
       .catch(() => null);
     fetchJson<GalleryItem[]>('/api/gallery')
       .then(data => setGallery(Array.isArray(data) ? data : []))
@@ -109,8 +141,8 @@ export default function Home() {
               <Link className="btn btn-primary" to="/register">
                 Register Now
               </Link>
-              <Link className="btn btn-ghost" to="/workshops">
-                Workshop Registration
+              <Link className="btn btn-ghost" to="/hackathon">
+                CodeHunt Registration
               </Link>
             </div>
             <div className="pillars">
@@ -192,7 +224,7 @@ export default function Home() {
 
       <section className="section dark">
         <h2 className="section-title">Core Events</h2>
-        <p className="section-subtitle">Hackathon, Workshops, Kinetic Showdown, eSports, and Open Mic with dedicated registration flows.</p>
+        <p className="section-subtitle">CodeHunt Hackathon, Workshops, Kinetic Showdown, eSports, and Open Mic with dedicated registration flows.</p>
         <div className="event-grid">
           {(events && events.length > 0 ? events : fallbackEvents).map(event => (
             <div className="event-card" key={event.id}>

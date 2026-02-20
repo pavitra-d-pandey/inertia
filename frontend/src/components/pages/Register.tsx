@@ -9,7 +9,7 @@ export default function Register() {
       <div className="cards-grid" style={{ marginTop: '24px' }}>
         <div className="card">
           <h4>Hackathon</h4>
-          <p>Cube# 12-hour hackathon registration.</p>
+          <p>CodeHunt 12-hour hackathon registration.</p>
           <Link className="btn btn-primary" to="/hackathon">
             Register Hackathon
           </Link>

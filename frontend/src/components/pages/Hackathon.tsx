@@ -49,7 +49,7 @@ export default function Hackathon() {
       const payment = await collectPayment(
         'hackathon',
         { name: form.contactName, email: form.contactEmail, contact: form.contactPhone },
-        'Cube# Hackathon'
+        'CodeHunt Hackathon'
       );
 
       const res = await fetchJson<RegisterResponse>('/api/hackathon/register', {
@@ -80,7 +80,7 @@ export default function Hackathon() {
 
   return (
     <section className="section">
-      <h2 className="section-title">Cube# Hackathon</h2>
+      <h2 className="section-title">CodeHunt Hackathon</h2>
       <p className="section-subtitle">
         12-hour hackathon with internship interview opportunities, product building, and live stage presentations.
       </p>
@@ -97,7 +97,7 @@ export default function Hackathon() {
       </div>
 
       <div className="banner" style={{ marginTop: '22px' }}>
-        <h4 style={{ marginTop: 0 }}>Why Join Cube# Hackathon</h4>
+        <h4 style={{ marginTop: 0 }}>Why Join CodeHunt Hackathon</h4>
         <ul>
           <li>Registration fee: INR 300 per team.</li>
           <li>Problem statements will be revealed on the spot.</li>
@@ -118,20 +118,20 @@ export default function Hackathon() {
             required
           />
           <input
-            placeholder="Contact person name"
+            placeholder="Leader name"
             value={form.contactName}
             onChange={e => setForm({ ...form, contactName: e.target.value })}
             required
           />
           <input
-            placeholder="Contact email"
+            placeholder="Leader email"
             type="email"
             value={form.contactEmail}
             onChange={e => setForm({ ...form, contactEmail: e.target.value })}
             required
           />
           <input
-            placeholder="Contact phone"
+            placeholder="Leader phone"
             value={form.contactPhone}
             onChange={e => setForm({ ...form, contactPhone: e.target.value })}
             required

@@ -103,7 +103,7 @@ export default function AdminRegistrations() {
             <thead>
               <tr>
                 <th>Team</th>
-                <th>Contact</th>
+                <th>Leader</th>
                 <th>Members</th>
                 <th>Payment</th>
                 <th>Created</th>
@@ -122,7 +122,7 @@ export default function AdminRegistrations() {
                       <p>{item.memberCount} members, {item.femaleCount} female</p>
                     </td>
                     <td>
-                      <strong>{item.contactName}</strong>
+                      <strong>Leader: {item.contactName}</strong>
                       <p>{item.contactEmail}</p>
                       <p>{item.contactPhone}</p>
                       <p>{item.collegeName}</p>
