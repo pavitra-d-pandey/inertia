@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS cultural_events (
   title VARCHAR(120) NOT NULL,
   preview VARCHAR(160) NOT NULL,
   description TEXT NOT NULL,
+  image_url TEXT NULL,
   sort_order INT NOT NULL DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS workshop_registrations (
   name VARCHAR(120) NOT NULL,
   email VARCHAR(160) NOT NULL,
   phone VARCHAR(40) NOT NULL,
+  college_name VARCHAR(200) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -81,6 +83,43 @@ CREATE TABLE IF NOT EXISTS robo_registrations (
   email VARCHAR(160) NOT NULL,
   phone VARCHAR(40) NOT NULL,
   robot_name VARCHAR(120) NOT NULL,
+  college_name VARCHAR(200) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS kinetic_showdown_registrations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  team_name VARCHAR(120) NOT NULL,
+  team_leader_name VARCHAR(120) NOT NULL,
+  email VARCHAR(160) NOT NULL,
+  phone VARCHAR(40) NOT NULL,
+  college_name VARCHAR(200) NOT NULL,
+  member_count INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS esports_registrations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  team_name VARCHAR(120) NOT NULL,
+  game VARCHAR(40) NOT NULL,
+  college_name VARCHAR(200) NOT NULL,
+  team_leader_name VARCHAR(120) NOT NULL,
+  team_leader_email VARCHAR(160) NOT NULL,
+  team_leader_phone VARCHAR(40) NOT NULL,
+  member_count INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS open_mic_registrations (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(120) NOT NULL,
+  email VARCHAR(160) NOT NULL,
+  phone VARCHAR(40) NOT NULL,
+  enrollment_number VARCHAR(80) NOT NULL,
+  year VARCHAR(40) NOT NULL,
+  college_name VARCHAR(200) NOT NULL,
+  performance_type VARCHAR(200) NOT NULL,
+  script_pdf_url TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

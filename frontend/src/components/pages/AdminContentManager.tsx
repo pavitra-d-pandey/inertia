@@ -24,7 +24,7 @@ export default function AdminContentManager() {
     ]);
     setGallery(Array.isArray(galleryData) ? galleryData : []);
     setTeam(Array.isArray(teamData) ? teamData : []);
-    setCulture(Array.isArray(cultureData) ? cultureData : []);
+    setCulture(Array.isArray(cultureData) ? cultureData.map(item => ({ ...item, imageUrl: item.imageUrl || '' })) : []);
   };
 
   useEffect(() => {
@@ -140,7 +140,8 @@ export default function AdminContentManager() {
         body: JSON.stringify({
           title: event.title,
           preview: event.preview,
-          description: event.description
+          description: event.description,
+          imageUrl: event.imageUrl
         })
       });
       setResult(res.message);
@@ -255,6 +256,7 @@ export default function AdminContentManager() {
                 <input value={event.title} onChange={e => setCulture(prev => prev.map(x => x.id === event.id ? { ...x, title: e.target.value } : x))} />
                 <input value={event.preview} onChange={e => setCulture(prev => prev.map(x => x.id === event.id ? { ...x, preview: e.target.value } : x))} />
                 <textarea rows={3} value={event.description} onChange={e => setCulture(prev => prev.map(x => x.id === event.id ? { ...x, description: e.target.value } : x))} />
+                <input value={event.imageUrl || ''} onChange={e => setCulture(prev => prev.map(x => x.id === event.id ? { ...x, imageUrl: e.target.value } : x))} />
                 <div className="admin-links">
                   <button className="btn btn-primary" type="button" disabled={loading} onClick={() => updateCulture(event)}>Save</button>
                   <button className="btn btn-ghost" type="button" disabled={loading} onClick={() => deleteCulture(event.id)}>Delete</button>

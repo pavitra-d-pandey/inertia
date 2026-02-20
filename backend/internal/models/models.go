@@ -52,6 +52,7 @@ type CulturalEvent struct {
 	Title       string `json:"title"`
 	Preview     string `json:"preview"`
 	Description string `json:"description"`
+	ImageURL    string `json:"imageUrl"`
 }
 
 type WorkshopRegistration struct {
@@ -60,6 +61,7 @@ type WorkshopRegistration struct {
 	Name          string `json:"name"`
 	Email         string `json:"email"`
 	Phone         string `json:"phone"`
+	CollegeName   string `json:"collegeName"`
 	PaymentStatus string `json:"paymentStatus"`
 	PaymentID     string `json:"paymentId"`
 	CreatedAt     string `json:"createdAt"`
@@ -72,6 +74,7 @@ type RoboRegistration struct {
 	Email         string       `json:"email"`
 	Phone         string       `json:"phone"`
 	RobotName     string       `json:"robotName"`
+	CollegeName   string       `json:"collegeName"`
 	MemberCount   int          `json:"memberCount"`
 	Members       []RoboMember `json:"members"`
 	PaymentStatus string       `json:"paymentStatus"`
@@ -85,6 +88,7 @@ type HackathonRegistration struct {
 	ContactName   string            `json:"contactName"`
 	ContactEmail  string            `json:"contactEmail"`
 	ContactPhone  string            `json:"contactPhone"`
+	CollegeName   string            `json:"collegeName"`
 	MemberCount   int               `json:"memberCount"`
 	FemaleCount   int               `json:"femaleCount"`
 	Members       []HackathonMember `json:"members"`
@@ -94,9 +98,12 @@ type HackathonRegistration struct {
 }
 
 type RoboMember struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-	Phone string `json:"phone"`
+	Name        string `json:"name"`
+	Email       string `json:"email"`
+	Phone       string `json:"phone"`
+	Branch      string `json:"branch"`
+	Semester    string `json:"semester"`
+	CollegeName string `json:"collegeName"`
 }
 
 type HackathonMember struct {
@@ -104,4 +111,39 @@ type HackathonMember struct {
 	Email  string `json:"email"`
 	Phone  string `json:"phone"`
 	Gender string `json:"gender"`
+}
+
+type EsportsMember struct {
+	Name        string `json:"name"`
+	Branch      string `json:"branch"`
+	Semester    string `json:"semester"`
+	CollegeName string `json:"collegeName"`
+}
+
+type EsportsRegistration struct {
+	ID              int64           `json:"id"`
+	TeamName        string          `json:"teamName"`
+	Game            string          `json:"game"`
+	CollegeName     string          `json:"collegeName"`
+	TeamLeaderName  string          `json:"teamLeaderName"`
+	TeamLeaderEmail string          `json:"teamLeaderEmail"`
+	TeamLeaderPhone string          `json:"teamLeaderPhone"`
+	MemberCount     int             `json:"memberCount"`
+	Members         []EsportsMember `json:"members"`
+	PaymentStatus   string          `json:"paymentStatus"`
+	PaymentID       string          `json:"paymentId"`
+	CreatedAt       string          `json:"createdAt"`
+}
+
+type OpenMicRegistration struct {
+	ID               int64  `json:"id"`
+	Name             string `json:"name"`
+	Email            string `json:"email"`
+	Phone            string `json:"phone"`
+	EnrollmentNumber string `json:"enrollmentNumber"`
+	Year             string `json:"year"`
+	CollegeName      string `json:"collegeName"`
+	PerformanceType  string `json:"performanceType"`
+	ScriptPDFURL     string `json:"scriptPdfUrl"`
+	CreatedAt        string `json:"createdAt"`
 }

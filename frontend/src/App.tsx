@@ -8,6 +8,8 @@ import Home from './components/pages/Home';
 import Hackathon from './components/pages/Hackathon';
 import Workshops from './components/pages/Workshops';
 import RoboRace from './components/pages/RoboRace';
+import Esports from './components/pages/Esports';
+import OpenMic from './components/pages/OpenMic';
 import Register from './components/pages/Register';
 import Culture from './components/pages/Culture';
 import Gallery from './components/pages/Gallery';
@@ -34,7 +36,10 @@ export default function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/hackathon" element={<Hackathon />} />
           <Route path="/workshops" element={<Workshops />} />
+          <Route path="/kinetic-showdown" element={<RoboRace />} />
           <Route path="/robo-race" element={<RoboRace />} />
+          <Route path="/esports" element={<Esports />} />
+          <Route path="/open-mic" element={<OpenMic />} />
           <Route path="/culture" element={<Culture />} />
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/team" element={<Team />} />

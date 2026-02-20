@@ -52,12 +52,12 @@ func SeedDefaults(database *mongo.Database) error {
 			Dates:        "Coming 2026",
 			Location:     "Jabalpur Engineering College, Jabalpur, Madhya Pradesh",
 			Highlights: []string{
-				"Unstop Hackathon",
-				"AI & ML Workshops",
-				"Robo Race Arena",
+				"Cube# Hackathon",
+				"Workshop Series",
+				"Kinetic Showdown",
+				"eSports Arena",
+				"Open Mic Stage",
 				"DJ Night & Culture Fest",
-				"Tech Talks & Expert Sessions",
-				"Startup & Project Expo",
 			},
 		})
 		if err != nil {
@@ -72,9 +72,11 @@ func SeedDefaults(database *mongo.Database) error {
 	}
 	if eventsCount == 0 {
 		_, err = events.InsertMany(ctx, []interface{}{
-			bson.M{"id": 1, "slug": "hackathon", "title": "Unstop Hackathon", "description": "4-member teams with at least one female member. Single-step registration with Razorpay payment.", "dateLabel": "48 Hours", "ctaLabel": "Register Team", "sortOrder": 1},
-			bson.M{"id": 2, "slug": "workshops", "title": "AI & ML Workshops", "description": "Hands-on labs with expert mentors. Payments handled via Razorpay.", "dateLabel": "2 Days", "ctaLabel": "Register Workshop", "sortOrder": 2},
-			bson.M{"id": 3, "slug": "robo-race", "title": "Robo Race", "description": "Choose team size, add members, and complete registration with Razorpay.", "dateLabel": "Final Day", "ctaLabel": "Register Robot", "sortOrder": 3},
+			bson.M{"id": 1, "slug": "hackathon", "title": "Cube# Hackathon", "description": "12-hour hackathon with sponsored problem statements and rapid prototyping.", "dateLabel": "12 Hours", "ctaLabel": "Register Hackathon", "sortOrder": 1},
+			bson.M{"id": 2, "slug": "workshops", "title": "Workshops", "description": "Hands-on sessions with industry mentors and sponsor-backed tracks.", "dateLabel": "2 Days", "ctaLabel": "Register Workshop", "sortOrder": 2},
+			bson.M{"id": 3, "slug": "kinetic-showdown", "title": "Kinetic Showdown", "description": "Build and race your custom RC car team in a timed challenge.", "dateLabel": "Final Day", "ctaLabel": "Register Team", "sortOrder": 3},
+			bson.M{"id": 4, "slug": "esports", "title": "eSports", "description": "Compete in Valorant or BGMI with your squad.", "dateLabel": "Tournament", "ctaLabel": "Register eSports", "sortOrder": 4},
+			bson.M{"id": 5, "slug": "open-mic", "title": "Open Mic", "description": "Showcase your performance on the cultural stage.", "dateLabel": "Open Stage", "ctaLabel": "Register Open Mic", "sortOrder": 5},
 		})
 		if err != nil {
 			return fmt.Errorf("events seed: %w", err)
@@ -88,11 +90,11 @@ func SeedDefaults(database *mongo.Database) error {
 	}
 	if faqCount == 0 {
 		_, err = faqs.InsertMany(ctx, []interface{}{
-			bson.M{"id": 1, "question": "How do hackathon teams work?", "answer": "Hackathon registration is a single-step form for exactly 4 members.", "sortOrder": 1},
-			bson.M{"id": 2, "question": "Do workshops require payment?", "answer": "Yes. Workshop registrations will be paid via Razorpay.", "sortOrder": 2},
-			bson.M{"id": 3, "question": "What is the team size rule?", "answer": "Each hackathon team has 4 members and must include at least one female member.", "sortOrder": 3},
+			bson.M{"id": 1, "question": "How long is the hackathon?", "answer": "Cube# is a 12-hour hackathon.", "sortOrder": 1},
+			bson.M{"id": 2, "question": "Do workshops require payment?", "answer": "Yes. Workshop registrations are paid via Razorpay.", "sortOrder": 2},
+			bson.M{"id": 3, "question": "What are the eSports team sizes?", "answer": "Valorant requires 5 players and BGMI requires 4 players.", "sortOrder": 3},
 			bson.M{"id": 4, "question": "Where is the venue?", "answer": "All events take place at the Jabalpur Engineering College campus.", "sortOrder": 4},
-			bson.M{"id": 5, "question": "Can I register for multiple events?", "answer": "Yes, you can register for workshops, Robo Race, and the hackathon independently.", "sortOrder": 5},
+			bson.M{"id": 5, "question": "Can I register for multiple events?", "answer": "Yes, you can register for hackathon, workshops, kinetic showdown, eSports, and open mic.", "sortOrder": 5},
 			bson.M{"id": 6, "question": "How do I get updates?", "answer": "Follow official Inertia channels and watch the website for schedule updates.", "sortOrder": 6},
 			bson.M{"id": 7, "question": "How can my company participate?", "answer": "Contact the organizing team using the details on the Contact page.", "sortOrder": 7},
 			bson.M{"id": 8, "question": "Does INERTIA host expos?", "answer": "Yes, the fest includes a Startup & Project Expo along with Defense and Automotive showcases.", "sortOrder": 8},

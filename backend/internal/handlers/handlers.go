@@ -49,8 +49,12 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		api.GET("/culture/events", h.getCulturalEvents)
 
 		api.POST("/workshops/register", h.registerWorkshop)
-		api.POST("/robo-race/register", h.registerRoboRace)
+		api.POST("/robo-race/register", h.registerKineticShowdown)
+		api.POST("/kinetic-showdown/register", h.registerKineticShowdown)
 		api.POST("/hackathon/register", h.registerHackathon)
+		api.POST("/esports/register", h.registerEsports)
+		api.POST("/open-mic/register", h.registerOpenMic)
+		api.POST("/uploads/document", h.uploadDocument)
 		api.POST("/payments/razorpay/order", h.createRazorpayOrder)
 
 		admin := api.Group("/admin")
@@ -71,7 +75,10 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.POST("/notifications/broadcast", h.broadcastEmail)
 		admin.GET("/registrations/workshops", h.getWorkshopRegistrations)
 		admin.GET("/registrations/robo-race", h.getRoboRegistrations)
+		admin.GET("/registrations/kinetic-showdown", h.getRoboRegistrations)
 		admin.GET("/registrations/hackathon", h.getHackathonRegistrations)
+		admin.GET("/registrations/esports", h.getEsportsRegistrations)
+		admin.GET("/registrations/open-mic", h.getOpenMicRegistrations)
 	}
 }
 
@@ -240,6 +247,7 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 		Name              string `json:"name"`
 		Email             string `json:"email"`
 		Phone             string `json:"phone"`
+		CollegeName       string `json:"collegeName"`
 		WorkshopID        string `json:"workshopId"`
 		RazorpayOrderID   string `json:"razorpayOrderId"`
 		RazorpayPaymentID string `json:"razorpayPaymentId"`
@@ -249,7 +257,7 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.Name == "" || req.Email == "" || req.Phone == "" || req.WorkshopID == "" {
+	if req.Name == "" || req.Email == "" || req.Phone == "" || req.CollegeName == "" || req.WorkshopID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -274,11 +282,12 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 	}
 
 	_, err = h.DB.Collection("workshop_registrations").InsertOne(ctx, bson.M{
-		"id":         id,
-		"workshopId": workshopID,
-		"name":       req.Name,
-		"email":      req.Email,
-		"phone":      req.Phone,
+		"id":          id,
+		"workshopId":  workshopID,
+		"name":        req.Name,
+		"email":       req.Email,
+		"phone":       req.Phone,
+		"collegeName": req.CollegeName,
 		"payment": bson.M{
 			"status":            "paid",
 			"razorpayOrderId":   req.RazorpayOrderID,
@@ -294,18 +303,21 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Workshop registration saved"})
 }
 
-func (h *Handler) registerRoboRace(c *gin.Context) {
+func (h *Handler) registerKineticShowdown(c *gin.Context) {
 	var req struct {
-		TeamName    string `json:"teamName"`
-		CaptainName string `json:"captainName"`
-		Email       string `json:"email"`
-		Phone       string `json:"phone"`
-		RobotName   string `json:"robotName"`
-		MemberCount int    `json:"memberCount"`
-		Members     []struct {
-			Name  string `json:"name"`
-			Email string `json:"email"`
-			Phone string `json:"phone"`
+		TeamName       string `json:"teamName"`
+		TeamLeaderName string `json:"teamLeaderName"`
+		Email          string `json:"email"`
+		Phone          string `json:"phone"`
+		CollegeName    string `json:"collegeName"`
+		MemberCount    int    `json:"memberCount"`
+		Members        []struct {
+			Name        string `json:"name"`
+			Email       string `json:"email"`
+			Phone       string `json:"phone"`
+			Branch      string `json:"branch"`
+			Semester    string `json:"semester"`
+			CollegeName string `json:"collegeName"`
 		} `json:"members"`
 		RazorpayOrderID   string `json:"razorpayOrderId"`
 		RazorpayPaymentID string `json:"razorpayPaymentId"`
@@ -315,12 +327,12 @@ func (h *Handler) registerRoboRace(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.TeamName == "" || req.CaptainName == "" || req.Email == "" || req.Phone == "" || req.RobotName == "" {
+	if req.TeamName == "" || req.TeamLeaderName == "" || req.Email == "" || req.Phone == "" || req.CollegeName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
-	if req.MemberCount < 1 || req.MemberCount > 20 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "member count must be between 1 and 20"})
+	if req.MemberCount < 2 || req.MemberCount > 4 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "member count must be between 2 and 4"})
 		return
 	}
 	if len(req.Members) != req.MemberCount {
@@ -328,7 +340,7 @@ func (h *Handler) registerRoboRace(c *gin.Context) {
 		return
 	}
 	for _, member := range req.Members {
-		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Email) == "" || strings.TrimSpace(member.Phone) == "" {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Email) == "" || strings.TrimSpace(member.Phone) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.Semester) == "" || strings.TrimSpace(member.CollegeName) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
 			return
 		}
@@ -341,21 +353,21 @@ func (h *Handler) registerRoboRace(c *gin.Context) {
 	ctx, cancel := h.ctx()
 	defer cancel()
 
-	id, err := h.nextID(ctx, "robo_registrations")
+	id, err := h.nextID(ctx, "kinetic_showdown_registrations")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save"})
 		return
 	}
 
-	_, err = h.DB.Collection("robo_registrations").InsertOne(ctx, bson.M{
-		"id":          id,
-		"teamName":    req.TeamName,
-		"captainName": req.CaptainName,
-		"email":       req.Email,
-		"phone":       req.Phone,
-		"robotName":   req.RobotName,
-		"memberCount": req.MemberCount,
-		"members":     req.Members,
+	_, err = h.DB.Collection("kinetic_showdown_registrations").InsertOne(ctx, bson.M{
+		"id":             id,
+		"teamName":       req.TeamName,
+		"teamLeaderName": req.TeamLeaderName,
+		"email":          req.Email,
+		"phone":          req.Phone,
+		"collegeName":    req.CollegeName,
+		"memberCount":    req.MemberCount,
+		"members":        req.Members,
 		"payment": bson.M{
 			"status":            "paid",
 			"razorpayOrderId":   req.RazorpayOrderID,
@@ -373,9 +385,9 @@ func (h *Handler) registerRoboRace(c *gin.Context) {
 		emailCandidates = append(emailCandidates, member.Email)
 	}
 	recipientEmails := collectUniqueNormalizedEmails(emailCandidates)
-	h.sendPaymentSuccessEmail("Robo Race", req.TeamName, req.RazorpayPaymentID, recipientEmails)
+	h.sendPaymentSuccessEmail("Kinetic Showdown", req.TeamName, req.RazorpayPaymentID, recipientEmails)
 
-	c.JSON(http.StatusOK, gin.H{"message": "Robo race registration saved"})
+	c.JSON(http.StatusOK, gin.H{"message": "Kinetic showdown registration saved"})
 }
 
 func (h *Handler) registerHackathon(c *gin.Context) {
@@ -384,6 +396,7 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		ContactName  string `json:"contactName"`
 		ContactEmail string `json:"contactEmail"`
 		ContactPhone string `json:"contactPhone"`
+		CollegeName  string `json:"collegeName"`
 		Members      []struct {
 			Name   string `json:"name"`
 			Email  string `json:"email"`
@@ -398,7 +411,7 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.TeamName == "" || req.ContactName == "" || req.ContactEmail == "" || req.ContactPhone == "" {
+	if req.TeamName == "" || req.ContactName == "" || req.ContactEmail == "" || req.ContactPhone == "" || req.CollegeName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -440,6 +453,7 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		"contactName":  req.ContactName,
 		"contactEmail": req.ContactEmail,
 		"contactPhone": req.ContactPhone,
+		"collegeName":  req.CollegeName,
 		"members":      req.Members,
 		"memberCount":  len(req.Members),
 		"femaleCount":  femaleCount,
@@ -465,6 +479,137 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Hackathon registration saved"})
 }
 
+func (h *Handler) registerEsports(c *gin.Context) {
+	var req struct {
+		TeamName        string `json:"teamName"`
+		Game            string `json:"game"`
+		CollegeName     string `json:"collegeName"`
+		TeamLeaderName  string `json:"teamLeaderName"`
+		TeamLeaderEmail string `json:"teamLeaderEmail"`
+		TeamLeaderPhone string `json:"teamLeaderPhone"`
+		Members         []struct {
+			Name        string `json:"name"`
+			Branch      string `json:"branch"`
+			Semester    string `json:"semester"`
+			CollegeName string `json:"collegeName"`
+		} `json:"members"`
+		RazorpayOrderID   string `json:"razorpayOrderId"`
+		RazorpayPaymentID string `json:"razorpayPaymentId"`
+		RazorpaySignature string `json:"razorpaySignature"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	game := strings.ToLower(strings.TrimSpace(req.Game))
+	memberCount := len(req.Members)
+	if req.TeamName == "" || req.CollegeName == "" || req.TeamLeaderName == "" || req.TeamLeaderEmail == "" || req.TeamLeaderPhone == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+	if game != "valorant" && game != "bgmi" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid game"})
+		return
+	}
+	if (game == "valorant" && memberCount != 5) || (game == "bgmi" && memberCount != 4) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid team size for selected game"})
+		return
+	}
+	for _, member := range req.Members {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.Semester) == "" || strings.TrimSpace(member.CollegeName) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
+			return
+		}
+	}
+	if !verifyRazorpayPayment(req.RazorpayOrderID, req.RazorpayPaymentID, req.RazorpaySignature, h.Config.RazorpayKeySecret) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment verification"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	id, err := h.nextID(ctx, "esports_registrations")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
+		return
+	}
+
+	_, err = h.DB.Collection("esports_registrations").InsertOne(ctx, bson.M{
+		"id":              id,
+		"teamName":        req.TeamName,
+		"game":            game,
+		"collegeName":     req.CollegeName,
+		"teamLeaderName":  req.TeamLeaderName,
+		"teamLeaderEmail": req.TeamLeaderEmail,
+		"teamLeaderPhone": req.TeamLeaderPhone,
+		"memberCount":     memberCount,
+		"members":         req.Members,
+		"payment": bson.M{
+			"status":            "paid",
+			"razorpayOrderId":   req.RazorpayOrderID,
+			"razorpayPaymentId": req.RazorpayPaymentID,
+		},
+		"createdAt": time.Now(),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
+		return
+	}
+
+	recipientEmails := collectUniqueNormalizedEmails([]string{req.TeamLeaderEmail})
+	h.sendPaymentSuccessEmail("eSports", req.TeamName, req.RazorpayPaymentID, recipientEmails)
+	c.JSON(http.StatusOK, gin.H{"message": "eSports registration saved"})
+}
+
+func (h *Handler) registerOpenMic(c *gin.Context) {
+	var req struct {
+		Name             string `json:"name"`
+		Email            string `json:"email"`
+		Phone            string `json:"phone"`
+		EnrollmentNumber string `json:"enrollmentNumber"`
+		Year             string `json:"year"`
+		CollegeName      string `json:"collegeName"`
+		PerformanceType  string `json:"performanceType"`
+		ScriptPDFURL     string `json:"scriptPdfUrl"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if req.Name == "" || req.Email == "" || req.Phone == "" || req.EnrollmentNumber == "" || req.Year == "" || req.CollegeName == "" || req.PerformanceType == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	id, err := h.nextID(ctx, "open_mic_registrations")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
+		return
+	}
+
+	_, err = h.DB.Collection("open_mic_registrations").InsertOne(ctx, bson.M{
+		"id":               id,
+		"name":             req.Name,
+		"email":            req.Email,
+		"phone":            req.Phone,
+		"enrollmentNumber": req.EnrollmentNumber,
+		"year":             req.Year,
+		"collegeName":      req.CollegeName,
+		"performanceType":  req.PerformanceType,
+		"scriptPdfUrl":     req.ScriptPDFURL,
+		"createdAt":        time.Now(),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Open Mic registration saved"})
+}
+
 func (h *Handler) createRazorpayOrder(c *gin.Context) {
 	var req struct {
 		Event       string `json:"event"`
@@ -485,13 +630,13 @@ func (h *Handler) createRazorpayOrder(c *gin.Context) {
 	case "workshops":
 		amount = 30000
 	case "hackathon":
-		amount = 40000
-	case "robo-race":
-		if req.MemberCount < 1 || req.MemberCount > 20 {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "member count must be between 1 and 20 for robo-race"})
-			return
-		}
-		amount = int64(req.MemberCount) * 10000
+		amount = 30000
+	case "kinetic-showdown", "robo-race":
+		amount = 30000
+	case "esports-valorant":
+		amount = 24900
+	case "esports-bgmi":
+		amount = 9900
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event"})
 		return
@@ -562,12 +707,30 @@ func (h *Handler) uploadImage(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
 		return
 	}
-	imageURL, err := uploadToCloudinary(file, h.Config)
+	imageURL, err := uploadToCloudinary(file, h.Config, "image")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"imageUrl": imageURL})
+}
+
+func (h *Handler) uploadDocument(c *gin.Context) {
+	if h.Config.CloudinaryCloudName == "" || h.Config.CloudinaryAPIKey == "" || h.Config.CloudinaryAPISecret == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Cloudinary keys not set"})
+		return
+	}
+	file, err := c.FormFile("document")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing file"})
+		return
+	}
+	documentURL, err := uploadToCloudinary(file, h.Config, "raw")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"documentUrl": documentURL})
 }
 
 func (h *Handler) saveGlimpse(c *gin.Context) {
@@ -656,12 +819,13 @@ func (h *Handler) saveCulturalEvent(c *gin.Context) {
 		Title       string `json:"title"`
 		Preview     string `json:"preview"`
 		Description string `json:"description"`
+		ImageURL    string `json:"imageUrl"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.Title == "" || req.Preview == "" || req.Description == "" {
+	if req.Title == "" || req.Preview == "" || req.Description == "" || req.ImageURL == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -679,6 +843,7 @@ func (h *Handler) saveCulturalEvent(c *gin.Context) {
 		"title":       req.Title,
 		"preview":     req.Preview,
 		"description": req.Description,
+		"imageUrl":    req.ImageURL,
 		"sortOrder":   0,
 		"createdAt":   time.Now(),
 	})
@@ -825,12 +990,13 @@ func (h *Handler) updateCulturalEvent(c *gin.Context) {
 		Title       string `json:"title"`
 		Preview     string `json:"preview"`
 		Description string `json:"description"`
+		ImageURL    string `json:"imageUrl"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.Title == "" || req.Preview == "" || req.Description == "" {
+	if req.Title == "" || req.Preview == "" || req.Description == "" || req.ImageURL == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -842,6 +1008,7 @@ func (h *Handler) updateCulturalEvent(c *gin.Context) {
 			"title":       req.Title,
 			"preview":     req.Preview,
 			"description": req.Description,
+			"imageUrl":    req.ImageURL,
 		},
 	})
 	if err != nil {
@@ -914,12 +1081,13 @@ func (h *Handler) getWorkshopRegistrations(c *gin.Context) {
 	var items []models.WorkshopRegistration
 	for cursor.Next(ctx) {
 		var reg struct {
-			ID         int64  `bson:"id"`
-			WorkshopID int64  `bson:"workshopId"`
-			Name       string `bson:"name"`
-			Email      string `bson:"email"`
-			Phone      string `bson:"phone"`
-			Payment    struct {
+			ID          int64  `bson:"id"`
+			WorkshopID  int64  `bson:"workshopId"`
+			Name        string `bson:"name"`
+			Email       string `bson:"email"`
+			Phone       string `bson:"phone"`
+			CollegeName string `bson:"collegeName"`
+			Payment     struct {
 				Status            string `bson:"status"`
 				RazorpayPaymentID string `bson:"razorpayPaymentId"`
 			} `bson:"payment"`
@@ -932,6 +1100,7 @@ func (h *Handler) getWorkshopRegistrations(c *gin.Context) {
 				Name:          reg.Name,
 				Email:         reg.Email,
 				Phone:         reg.Phone,
+				CollegeName:   reg.CollegeName,
 				PaymentStatus: reg.Payment.Status,
 				PaymentID:     reg.Payment.RazorpayPaymentID,
 				CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
@@ -945,7 +1114,12 @@ func (h *Handler) getRoboRegistrations(c *gin.Context) {
 	ctx, cancel := h.ctx()
 	defer cancel()
 
-	cursor, err := h.DB.Collection("robo_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	cursor, err := h.DB.Collection("kinetic_showdown_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	legacyMode := false
+	if err != nil {
+		cursor, err = h.DB.Collection("robo_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+		legacyMode = true
+	}
 	if err != nil {
 		c.JSON(http.StatusOK, []models.RoboRegistration{})
 		return
@@ -955,17 +1129,20 @@ func (h *Handler) getRoboRegistrations(c *gin.Context) {
 	var items []models.RoboRegistration
 	for cursor.Next(ctx) {
 		var reg struct {
-			ID          int64  `bson:"id"`
-			TeamName    string `bson:"teamName"`
-			CaptainName string `bson:"captainName"`
-			Email       string `bson:"email"`
-			Phone       string `bson:"phone"`
-			RobotName   string `bson:"robotName"`
-			MemberCount int    `bson:"memberCount"`
-			Members     []struct {
-				Name  string `bson:"name"`
-				Email string `bson:"email"`
-				Phone string `bson:"phone"`
+			ID             int64  `bson:"id"`
+			TeamName       string `bson:"teamName"`
+			TeamLeaderName string `bson:"teamLeaderName"`
+			Email          string `bson:"email"`
+			Phone          string `bson:"phone"`
+			CollegeName    string `bson:"collegeName"`
+			MemberCount    int    `bson:"memberCount"`
+			Members        []struct {
+				Name        string `bson:"name"`
+				Email       string `bson:"email"`
+				Phone       string `bson:"phone"`
+				Branch      string `bson:"branch"`
+				Semester    string `bson:"semester"`
+				CollegeName string `bson:"collegeName"`
 			} `bson:"members"`
 			Payment struct {
 				Status            string `bson:"status"`
@@ -975,21 +1152,28 @@ func (h *Handler) getRoboRegistrations(c *gin.Context) {
 			CreatedAt time.Time `bson:"createdAt"`
 		}
 		if err := cursor.Decode(&reg); err == nil {
+			if legacyMode && reg.TeamLeaderName == "" {
+				reg.TeamLeaderName = reg.TeamName
+			}
 			members := make([]models.RoboMember, 0, len(reg.Members))
 			for _, m := range reg.Members {
 				members = append(members, models.RoboMember{
-					Name:  m.Name,
-					Email: m.Email,
-					Phone: m.Phone,
+					Name:        m.Name,
+					Email:       m.Email,
+					Phone:       m.Phone,
+					Branch:      m.Branch,
+					Semester:    m.Semester,
+					CollegeName: m.CollegeName,
 				})
 			}
 			items = append(items, models.RoboRegistration{
 				ID:            reg.ID,
 				TeamName:      reg.TeamName,
-				CaptainName:   reg.CaptainName,
+				CaptainName:   reg.TeamLeaderName,
 				Email:         reg.Email,
 				Phone:         reg.Phone,
-				RobotName:     reg.RobotName,
+				RobotName:     "Kinetic Showdown Team",
+				CollegeName:   reg.CollegeName,
 				MemberCount:   maxInt(reg.MemberCount, len(members)),
 				Members:       members,
 				PaymentStatus: reg.Payment.Status,
@@ -1020,6 +1204,7 @@ func (h *Handler) getHackathonRegistrations(c *gin.Context) {
 			ContactName  string `bson:"contactName"`
 			ContactEmail string `bson:"contactEmail"`
 			ContactPhone string `bson:"contactPhone"`
+			CollegeName  string `bson:"collegeName"`
 			MemberCount  int    `bson:"memberCount"`
 			FemaleCount  int    `bson:"femaleCount"`
 			Members      []struct {
@@ -1051,12 +1236,119 @@ func (h *Handler) getHackathonRegistrations(c *gin.Context) {
 				ContactName:   reg.ContactName,
 				ContactEmail:  reg.ContactEmail,
 				ContactPhone:  reg.ContactPhone,
+				CollegeName:   reg.CollegeName,
 				MemberCount:   maxInt(reg.MemberCount, len(members)),
 				FemaleCount:   reg.FemaleCount,
 				Members:       members,
 				PaymentStatus: reg.Payment.Status,
 				PaymentID:     reg.Payment.RazorpayPaymentID,
 				CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) getEsportsRegistrations(c *gin.Context) {
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("esports_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	if err != nil {
+		c.JSON(http.StatusOK, []models.EsportsRegistration{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var items []models.EsportsRegistration
+	for cursor.Next(ctx) {
+		var reg struct {
+			ID              int64  `bson:"id"`
+			TeamName        string `bson:"teamName"`
+			Game            string `bson:"game"`
+			CollegeName     string `bson:"collegeName"`
+			TeamLeaderName  string `bson:"teamLeaderName"`
+			TeamLeaderEmail string `bson:"teamLeaderEmail"`
+			TeamLeaderPhone string `bson:"teamLeaderPhone"`
+			MemberCount     int    `bson:"memberCount"`
+			Members         []struct {
+				Name        string `bson:"name"`
+				Branch      string `bson:"branch"`
+				Semester    string `bson:"semester"`
+				CollegeName string `bson:"collegeName"`
+			} `bson:"members"`
+			Payment struct {
+				Status            string `bson:"status"`
+				RazorpayPaymentID string `bson:"razorpayPaymentId"`
+			} `bson:"payment"`
+			CreatedAt time.Time `bson:"createdAt"`
+		}
+		if err := cursor.Decode(&reg); err == nil {
+			members := make([]models.EsportsMember, 0, len(reg.Members))
+			for _, m := range reg.Members {
+				members = append(members, models.EsportsMember{
+					Name:        m.Name,
+					Branch:      m.Branch,
+					Semester:    m.Semester,
+					CollegeName: m.CollegeName,
+				})
+			}
+			items = append(items, models.EsportsRegistration{
+				ID:              reg.ID,
+				TeamName:        reg.TeamName,
+				Game:            reg.Game,
+				CollegeName:     reg.CollegeName,
+				TeamLeaderName:  reg.TeamLeaderName,
+				TeamLeaderEmail: reg.TeamLeaderEmail,
+				TeamLeaderPhone: reg.TeamLeaderPhone,
+				MemberCount:     maxInt(reg.MemberCount, len(members)),
+				Members:         members,
+				PaymentStatus:   reg.Payment.Status,
+				PaymentID:       reg.Payment.RazorpayPaymentID,
+				CreatedAt:       reg.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) getOpenMicRegistrations(c *gin.Context) {
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("open_mic_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	if err != nil {
+		c.JSON(http.StatusOK, []models.OpenMicRegistration{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var items []models.OpenMicRegistration
+	for cursor.Next(ctx) {
+		var reg struct {
+			ID               int64     `bson:"id"`
+			Name             string    `bson:"name"`
+			Email            string    `bson:"email"`
+			Phone            string    `bson:"phone"`
+			EnrollmentNumber string    `bson:"enrollmentNumber"`
+			Year             string    `bson:"year"`
+			CollegeName      string    `bson:"collegeName"`
+			PerformanceType  string    `bson:"performanceType"`
+			ScriptPDFURL     string    `bson:"scriptPdfUrl"`
+			CreatedAt        time.Time `bson:"createdAt"`
+		}
+		if err := cursor.Decode(&reg); err == nil {
+			items = append(items, models.OpenMicRegistration{
+				ID:               reg.ID,
+				Name:             reg.Name,
+				Email:            reg.Email,
+				Phone:            reg.Phone,
+				EnrollmentNumber: reg.EnrollmentNumber,
+				Year:             reg.Year,
+				CollegeName:      reg.CollegeName,
+				PerformanceType:  reg.PerformanceType,
+				ScriptPDFURL:     reg.ScriptPDFURL,
+				CreatedAt:        reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}
@@ -1112,8 +1404,12 @@ func (h *Handler) collectAudienceEmails(ctx context.Context, audience string) ([
 		return h.collectWorkshopEmails(ctx)
 	case "hackathon":
 		return h.collectHackathonEmails(ctx)
-	case "robo-race":
+	case "robo-race", "kinetic-showdown":
 		return h.collectRoboRaceEmails(ctx)
+	case "esports":
+		return h.collectEsportsEmails(ctx)
+	case "open-mic":
+		return h.collectOpenMicEmails(ctx)
 	case "all":
 		workshop, err := h.collectWorkshopEmails(ctx)
 		if err != nil {
@@ -1127,7 +1423,16 @@ func (h *Handler) collectAudienceEmails(ctx context.Context, audience string) ([
 		if err != nil {
 			return nil, err
 		}
-		return collectUniqueNormalizedEmails(append(append(workshop, hackathon...), robo...)), nil
+		esports, err := h.collectEsportsEmails(ctx)
+		if err != nil {
+			return nil, err
+		}
+		openMic, err := h.collectOpenMicEmails(ctx)
+		if err != nil {
+			return nil, err
+		}
+		combined := append(append(append(append(workshop, hackathon...), robo...), esports...), openMic...)
+		return collectUniqueNormalizedEmails(combined), nil
 	default:
 		return nil, fmt.Errorf("invalid audience")
 	}
@@ -1192,7 +1497,7 @@ func (h *Handler) collectHackathonEmails(ctx context.Context) ([]string, error) 
 }
 
 func (h *Handler) collectRoboRaceEmails(ctx context.Context) ([]string, error) {
-	cursor, err := h.DB.Collection("robo_registrations").Find(ctx, bson.D{})
+	cursor, err := h.DB.Collection("kinetic_showdown_registrations").Find(ctx, bson.D{})
 	if err != nil {
 		return nil, err
 	}
@@ -1211,6 +1516,56 @@ func (h *Handler) collectRoboRaceEmails(ctx context.Context) ([]string, error) {
 			for _, m := range reg.Members {
 				emails = append(emails, m.Email)
 			}
+		}
+	}
+	legacyCursor, legacyErr := h.DB.Collection("robo_registrations").Find(ctx, bson.D{})
+	if legacyErr == nil {
+		defer legacyCursor.Close(ctx)
+		for legacyCursor.Next(ctx) {
+			var reg struct {
+				Email string `bson:"email"`
+			}
+			if decodeErr := legacyCursor.Decode(&reg); decodeErr == nil {
+				emails = append(emails, reg.Email)
+			}
+		}
+	}
+	return collectUniqueNormalizedEmails(emails), nil
+}
+
+func (h *Handler) collectEsportsEmails(ctx context.Context) ([]string, error) {
+	cursor, err := h.DB.Collection("esports_registrations").Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var emails []string
+	for cursor.Next(ctx) {
+		var reg struct {
+			TeamLeaderEmail string `bson:"teamLeaderEmail"`
+		}
+		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
+			emails = append(emails, reg.TeamLeaderEmail)
+		}
+	}
+	return collectUniqueNormalizedEmails(emails), nil
+}
+
+func (h *Handler) collectOpenMicEmails(ctx context.Context) ([]string, error) {
+	cursor, err := h.DB.Collection("open_mic_registrations").Find(ctx, bson.D{})
+	if err != nil {
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var emails []string
+	for cursor.Next(ctx) {
+		var reg struct {
+			Email string `bson:"email"`
+		}
+		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
+			emails = append(emails, reg.Email)
 		}
 	}
 	return collectUniqueNormalizedEmails(emails), nil
@@ -1283,7 +1638,7 @@ func (h *Handler) sendEmail(subject, body string, recipients []string) error {
 	return nil
 }
 
-func uploadToCloudinary(file *multipart.FileHeader, cfg config.Config) (string, error) {
+func uploadToCloudinary(file *multipart.FileHeader, cfg config.Config, resourceType string) (string, error) {
 	src, err := file.Open()
 	if err != nil {
 		return "", err
@@ -1311,7 +1666,10 @@ func uploadToCloudinary(file *multipart.FileHeader, cfg config.Config) (string, 
 	}
 	writer.Close()
 
-	endpoint := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/image/upload", cfg.CloudinaryCloudName)
+	if resourceType == "" {
+		resourceType = "image"
+	}
+	endpoint := fmt.Sprintf("https://api.cloudinary.com/v1_1/%s/%s/upload", cfg.CloudinaryCloudName, resourceType)
 	req, err := http.NewRequest(http.MethodPost, endpoint, body)
 	if err != nil {
 		return "", err

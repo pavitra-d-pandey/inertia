@@ -6,16 +6,16 @@ import { EventInfo, FAQ, GalleryItem, LandingContent } from '../../lib/types';
 const fallbackLanding: LandingContent = {
   heroTitle: 'INERTIA 2.0: JEC Annual Tech Fest',
   heroSubtitle:
-    'The flagship annual festival at Jabalpur Engineering College, bringing together hackathons, workshops, innovation showcases, racing, and culture.',
+    'The flagship annual festival at Jabalpur Engineering College, featuring Cube# hackathon, workshops, kinetic showdown, esports, and culture.',
   dates: 'Coming 2026',
   location: 'Jabalpur Engineering College, Jabalpur, Madhya Pradesh',
   highlights: [
-    'Unstop Hackathon',
-    'AI & ML Workshops',
-    'Robo Race Arena',
+    'Cube# Hackathon',
+    'Workshop Series',
+    'Kinetic Showdown',
+    'eSports Arena',
+    'Open Mic Stage',
     'DJ Night & Culture Fest',
-    'Tech Talks & Expert Sessions',
-    'Startup & Project Expo'
   ]
 };
 
@@ -23,35 +23,51 @@ const fallbackEvents: EventInfo[] = [
   {
     id: 1,
     slug: 'hackathon',
-    title: 'Unstop Hackathon',
-    description: '4-member teams with at least one female member. Complete registration in one step.',
-    dateLabel: '48 Hours',
-    ctaLabel: 'Register Team'
+    title: 'Cube# Hackathon',
+    description: '12-hour build sprint with problem statements and rapid prototyping.',
+    dateLabel: '12 Hours',
+    ctaLabel: 'Register Hackathon'
   },
   {
     id: 2,
     slug: 'workshops',
-    title: 'AI & ML Workshops',
+    title: 'Workshops',
     description: 'Hands-on labs, experts, and project builds.',
     dateLabel: '2 Days',
     ctaLabel: 'Register Workshop'
   },
   {
     id: 3,
-    slug: 'robo-race',
-    title: 'Robo Race',
-    description: 'Speed, precision, and a custom track. Bring your bots or build one on campus.',
+    slug: 'kinetic-showdown',
+    title: 'Kinetic Showdown',
+    description: 'RC car design and race challenge with teams of 2 to 4 members.',
     dateLabel: 'Final Day',
-    ctaLabel: 'Register Robot'
+    ctaLabel: 'Register Team'
+  },
+  {
+    id: 4,
+    slug: 'esports',
+    title: 'eSports',
+    description: 'Compete in Valorant (5 players) or BGMI (4 players).',
+    dateLabel: 'Tournament',
+    ctaLabel: 'Register eSports'
+  },
+  {
+    id: 5,
+    slug: 'open-mic',
+    title: 'Open Mic',
+    description: 'Free stage registration for performers.',
+    dateLabel: 'Open Stage',
+    ctaLabel: 'Register Open Mic'
   }
 ];
 
 const fallbackFaqs: FAQ[] = [
-  { id: 1, question: 'How do hackathon teams work?', answer: 'Hackathon registration is a single-step form for exactly 4 members.' },
+  { id: 1, question: 'How long is Cube# hackathon?', answer: 'Cube# is a 12-hour hackathon.' },
   { id: 2, question: 'Do workshops require payment?', answer: 'Payment details will be shared during registration updates.' },
-  { id: 3, question: 'What is the team size rule?', answer: 'A hackathon team has 4 members and must include at least one female member.' },
+  { id: 3, question: 'What are the eSports team sizes?', answer: 'Valorant needs 5 players, BGMI needs 4 players.' },
   { id: 4, question: 'Where is the venue?', answer: 'All events take place at the Jabalpur Engineering College campus.' },
-  { id: 5, question: 'Can I register for multiple events?', answer: 'Yes, you can register for workshops, Robo Race, and the hackathon independently.' }
+  { id: 5, question: 'Can I register for multiple events?', answer: 'Yes, you can register for hackathon, workshops, kinetic showdown, esports, and open mic.' }
 ];
 
 export default function Home() {
@@ -176,7 +192,7 @@ export default function Home() {
 
       <section className="section dark">
         <h2 className="section-title">Core Events</h2>
-        <p className="section-subtitle">Hackathon, AI/ML Workshops, and Robo Race with dedicated registration flows.</p>
+        <p className="section-subtitle">Hackathon, Workshops, Kinetic Showdown, eSports, and Open Mic with dedicated registration flows.</p>
         <div className="event-grid">
           {(events && events.length > 0 ? events : fallbackEvents).map(event => (
             <div className="event-card" key={event.id}>

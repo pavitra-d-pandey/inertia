@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { fetchJson } from '../../lib/api';
 import { collectPaymentWithOptions } from '../../lib/payment';
+import { redirectToWhatsApp, WHATSAPP_LINKS } from '../../lib/eventLinks';
 
 type RegisterResponse = { message: string };
 
@@ -8,22 +9,29 @@ type RoboMember = {
   name: string;
   email: string;
   phone: string;
+  branch: string;
+  semester: string;
+  collegeName: string;
 };
 
 export default function RoboRace() {
+  const formRef = useRef<HTMLDivElement | null>(null);
   const [form, setForm] = useState({
     teamName: '',
-    captainName: '',
+    teamLeaderName: '',
     email: '',
     phone: '',
-    robotName: '',
-    memberCount: 1
+    collegeName: '',
+    memberCount: 2
   });
-  const [members, setMembers] = useState<RoboMember[]>([{ name: '', email: '', phone: '' }]);
+  const [members, setMembers] = useState<RoboMember[]>([
+    { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' },
+    { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' }
+  ]);
   const [result, setResult] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const normalizedCount = useMemo(() => Math.max(1, Math.min(20, form.memberCount)), [form.memberCount]);
+  const normalizedCount = useMemo(() => Math.max(2, Math.min(4, form.memberCount)), [form.memberCount]);
 
   const resizeMembers = (count: number) => {
     setMembers(prev => {
@@ -35,14 +43,14 @@ export default function RoboRace() {
       }
       return [
         ...prev,
-        ...Array.from({ length: count - prev.length }, () => ({ name: '', email: '', phone: '' }))
+        ...Array.from({ length: count - prev.length }, () => ({ name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' }))
       ];
     });
   };
 
   const handleCountChange = (value: string) => {
     const parsed = Number(value);
-    const count = Number.isNaN(parsed) ? 1 : Math.max(1, Math.min(20, parsed));
+    const count = Number.isNaN(parsed) ? 2 : Math.max(2, Math.min(4, parsed));
     setForm(prev => ({ ...prev, memberCount: count }));
     resizeMembers(count);
   };
@@ -57,31 +65,39 @@ export default function RoboRace() {
     setSubmitting(true);
     try {
       const payment = await collectPaymentWithOptions(
-        'robo-race',
-        { name: form.captainName, email: form.email, contact: form.phone },
-        'Robo Race',
-        { memberCount: normalizedCount }
+        'kinetic-showdown',
+        { name: form.teamLeaderName, email: form.email, contact: form.phone },
+        'Kinetic Showdown'
       );
 
-      const res = await fetchJson<RegisterResponse>('/api/robo-race/register', {
+      const enrichedMembers = members.map(member => ({
+        ...member,
+        collegeName: member.collegeName || form.collegeName
+      }));
+
+      const res = await fetchJson<RegisterResponse>('/api/kinetic-showdown/register', {
         method: 'POST',
         body: JSON.stringify({
           ...form,
           memberCount: normalizedCount,
-          members,
+          members: enrichedMembers,
           ...payment
         })
       });
       setResult(res.message);
       setForm({
         teamName: '',
-        captainName: '',
+        teamLeaderName: '',
         email: '',
         phone: '',
-        robotName: '',
-        memberCount: 1
+        collegeName: '',
+        memberCount: 2
       });
-      setMembers([{ name: '', email: '', phone: '' }]);
+      setMembers([
+        { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' },
+        { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' }
+      ]);
+      redirectToWhatsApp(WHATSAPP_LINKS.kineticShowdown);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to register');
     } finally {
@@ -91,15 +107,32 @@ export default function RoboRace() {
 
   return (
     <section className="section">
-      <h2 className="section-title">Robo Race</h2>
-      <p className="section-subtitle">Choose team size and register all students with payment in one flow.</p>
+      <h2 className="section-title">Kinetic Showdown</h2>
+      <p className="section-subtitle">Team entry: INR 300 per team. Choose 2 to 4 members and complete payment.</p>
 
       <div className="banner">
-        Track highlights include tight corners, ramp drops, laser gates, and a final sprint zone.
+        <h4 style={{ marginTop: 0 }}>RC Car Competition - Information Brochure</h4>
+        <p>COSMOS JEC is organizing the Kinetic Showdown RC Car competition during Inertia.</p>
+        <ul>
+          <li>Team size: minimum 2 and maximum 4.</li>
+          <li>Car limit: max 20cm x 20cm, max height 15cm, max weight 1.2kg.</li>
+          <li>No readymade framework/design; participants must build their own solution.</li>
+          <li>Wireless control required (Wi-Fi/Bluetooth/LoRa/Zigbee/RF modules).</li>
+          <li>Allowed stacks include Arduino, ESP, STM, Raspberry Pi, and similar platforms.</li>
+          <li>Chassis can be MDF/foam/cardboard/acrylic/3D print or other strong material.</li>
+          <li>Power must be on-board; no wired external power source.</li>
+          <li>Scoring: Build quality 10%, component decisions 10%, architecture 20%, creativity 10%, race 50%.</li>
+        </ul>
       </div>
 
-      <div className="card" style={{ marginTop: '24px' }}>
-        <h4>Robo Race Registration</h4>
+      <div style={{ marginTop: '22px' }}>
+        <button className="btn btn-primary" type="button" onClick={() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
+          Registration
+        </button>
+      </div>
+
+      <div className="card" style={{ marginTop: '24px' }} ref={formRef}>
+        <h4>Kinetic Showdown Registration</h4>
         <form className="form-grid" onSubmit={handleSubmit}>
           <input
             placeholder="Team name"
@@ -108,9 +141,9 @@ export default function RoboRace() {
             required
           />
           <input
-            placeholder="Captain name"
-            value={form.captainName}
-            onChange={e => setForm({ ...form, captainName: e.target.value })}
+            placeholder="Team leader name"
+            value={form.teamLeaderName}
+            onChange={e => setForm({ ...form, teamLeaderName: e.target.value })}
             required
           />
           <input
@@ -127,15 +160,15 @@ export default function RoboRace() {
             required
           />
           <input
-            placeholder="Robot name"
-            value={form.robotName}
-            onChange={e => setForm({ ...form, robotName: e.target.value })}
+            placeholder="College name"
+            value={form.collegeName}
+            onChange={e => setForm({ ...form, collegeName: e.target.value })}
             required
           />
           <input
             type="number"
-            min={1}
-            max={20}
+            min={2}
+            max={4}
             value={normalizedCount}
             onChange={e => handleCountChange(e.target.value)}
             required
@@ -164,12 +197,30 @@ export default function RoboRace() {
                   onChange={e => updateMember(index, 'phone', e.target.value)}
                   required
                 />
+                <input
+                  placeholder="Branch"
+                  value={member.branch}
+                  onChange={e => updateMember(index, 'branch', e.target.value)}
+                  required
+                />
+                <input
+                  placeholder="Semester / Year"
+                  value={member.semester}
+                  onChange={e => updateMember(index, 'semester', e.target.value)}
+                  required
+                />
+                <input
+                  placeholder="College name"
+                  value={member.collegeName}
+                  onChange={e => updateMember(index, 'collegeName', e.target.value)}
+                  required
+                />
               </div>
             </div>
           ))}
 
           <button className="btn btn-primary" type="submit" disabled={submitting}>
-            {submitting ? 'Processing Payment...' : 'Pay & Register Robo Race'}
+            {submitting ? 'Processing Payment...' : 'Pay INR 300 & Register'}
           </button>
         </form>
         {result && <div className="banner" style={{ marginTop: '18px' }}>{result}</div>}

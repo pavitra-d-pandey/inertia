@@ -21,7 +21,8 @@ export default function Admin() {
   const [cultureTitle, setCultureTitle] = useState('');
   const [culturePreview, setCulturePreview] = useState('');
   const [cultureDescription, setCultureDescription] = useState('');
-  const [mailAudience, setMailAudience] = useState<'all' | 'workshops' | 'hackathon' | 'robo-race'>('all');
+  const [cultureFile, setCultureFile] = useState<File | null>(null);
+  const [mailAudience, setMailAudience] = useState<'all' | 'workshops' | 'hackathon' | 'kinetic-showdown' | 'esports' | 'open-mic'>('all');
   const [mailSubject, setMailSubject] = useState('');
   const [mailBody, setMailBody] = useState('');
 
@@ -136,10 +137,15 @@ export default function Admin() {
 
   const handleCultureSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!cultureFile) {
+      setResult('Please select a culture event photo.');
+      return;
+    }
 
     setLoading(true);
     setResult('');
     try {
+      const imageUrl = await uploadImage(cultureFile);
       const saveRes = await fetchJson<{ message: string }>('/api/admin/culture-event', {
         method: 'POST',
         headers: {
@@ -148,7 +154,8 @@ export default function Admin() {
         body: JSON.stringify({
           title: cultureTitle,
           preview: culturePreview,
-          description: cultureDescription
+          description: cultureDescription,
+          imageUrl
         })
       });
 
@@ -156,6 +163,7 @@ export default function Admin() {
       setCultureTitle('');
       setCulturePreview('');
       setCultureDescription('');
+      setCultureFile(null);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Save failed');
     } finally {
@@ -295,6 +303,7 @@ export default function Admin() {
             rows={3}
             required
           />
+          <input type="file" accept="image/*" onChange={e => setCultureFile(e.target.files?.[0] ?? null)} required />
           <button className="btn btn-primary" type="submit" disabled={loading}>
             {loading ? 'Saving...' : 'Save Cultural Event'}
           </button>
@@ -304,11 +313,13 @@ export default function Admin() {
       <div className="card" style={{ marginTop: '28px' }}>
         <h4>Send Mail To Registrants</h4>
         <form className="form-grid" onSubmit={handleBroadcastMail}>
-          <select value={mailAudience} onChange={e => setMailAudience(e.target.value as 'all' | 'workshops' | 'hackathon' | 'robo-race')}>
+          <select value={mailAudience} onChange={e => setMailAudience(e.target.value as 'all' | 'workshops' | 'hackathon' | 'kinetic-showdown' | 'esports' | 'open-mic')}>
             <option value="all">Everyone (All Events)</option>
             <option value="workshops">Only Workshops</option>
             <option value="hackathon">Only Hackathon</option>
-            <option value="robo-race">Only Robo Race</option>
+            <option value="kinetic-showdown">Only Kinetic Showdown</option>
+            <option value="esports">Only eSports</option>
+            <option value="open-mic">Only Open Mic</option>
           </select>
           <input
             placeholder="Mail subject"

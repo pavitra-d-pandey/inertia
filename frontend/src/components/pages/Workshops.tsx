@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchJson } from '../../lib/api';
 import { collectPayment } from '../../lib/payment';
+import { redirectToWhatsApp, WHATSAPP_LINKS } from '../../lib/eventLinks';
 
 type Workshop = { id: number; title: string; description: string };
 
@@ -18,6 +19,7 @@ export default function Workshops() {
     name: '',
     email: '',
     phone: '',
+    collegeName: '',
     workshopId: String(fallbackWorkshops[0].id)
   });
   const [result, setResult] = useState('');
@@ -56,8 +58,10 @@ export default function Workshops() {
         name: '',
         email: '',
         phone: '',
+        collegeName: '',
         workshopId: prev.workshopId
       }));
+      redirectToWhatsApp(WHATSAPP_LINKS.workshops);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to register');
     } finally {
@@ -67,8 +71,16 @@ export default function Workshops() {
 
   return (
     <section className="section">
-      <h2 className="section-title">AI & ML Workshops</h2>
+      <h2 className="section-title">Workshops</h2>
       <p className="section-subtitle">Choose your workshop and complete registration.</p>
+
+      <div className="card" style={{ marginTop: '18px' }}>
+        <h4>Workshop Sponsors</h4>
+        <div className="sponsor-row">
+          <img src="/time.png" alt="TIME workshop sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
+          <img src="/upgrad.png" alt="upGrad workshop sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
+        </div>
+      </div>
 
       <div className="cards-grid">
         {workshops.map(workshop => (
@@ -99,6 +111,12 @@ export default function Workshops() {
             placeholder="Phone"
             value={form.phone}
             onChange={e => setForm({ ...form, phone: e.target.value })}
+            required
+          />
+          <input
+            placeholder="College name"
+            value={form.collegeName}
+            onChange={e => setForm({ ...form, collegeName: e.target.value })}
             required
           />
           <select

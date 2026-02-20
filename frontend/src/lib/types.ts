@@ -44,6 +44,7 @@ export type CulturalEvent = {
   title: string;
   preview: string;
   description: string;
+  imageUrl: string;
 };
 
 export type WorkshopRegistration = {
@@ -52,6 +53,7 @@ export type WorkshopRegistration = {
   name: string;
   email: string;
   phone: string;
+  collegeName: string;
   paymentStatus: string;
   paymentId: string;
   createdAt: string;
@@ -64,11 +66,15 @@ export type RoboRegistration = {
   email: string;
   phone: string;
   robotName: string;
+  collegeName: string;
   memberCount: number;
   members: Array<{
     name: string;
     email: string;
     phone: string;
+    branch: string;
+    semester: string;
+    collegeName: string;
   }>;
   paymentStatus: string;
   paymentId: string;
@@ -81,6 +87,7 @@ export type HackathonRegistration = {
   contactName: string;
   contactEmail: string;
   contactPhone: string;
+  collegeName: string;
   memberCount: number;
   femaleCount: number;
   members: Array<{
@@ -91,5 +98,38 @@ export type HackathonRegistration = {
   }>;
   paymentStatus: string;
   paymentId: string;
+  createdAt: string;
+};
+
+export type EsportsRegistration = {
+  id: number;
+  teamName: string;
+  game: string;
+  collegeName: string;
+  teamLeaderName: string;
+  teamLeaderEmail: string;
+  teamLeaderPhone: string;
+  memberCount: number;
+  members: Array<{
+    name: string;
+    branch: string;
+    semester: string;
+    collegeName: string;
+  }>;
+  paymentStatus: string;
+  paymentId: string;
+  createdAt: string;
+};
+
+export type OpenMicRegistration = {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  enrollmentNumber: string;
+  year: string;
+  collegeName: string;
+  performanceType: string;
+  scriptPdfUrl: string;
   createdAt: string;
 };

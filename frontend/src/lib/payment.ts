@@ -71,12 +71,16 @@ function openCheckout(order: RazorpayOrderResponse, prefill: { name: string; ema
   });
 }
 
-export async function collectPayment(event: 'hackathon' | 'robo-race' | 'workshops', prefill: { name: string; email: string; contact: string }, label: string) {
+export async function collectPayment(
+  event: 'hackathon' | 'robo-race' | 'workshops' | 'kinetic-showdown' | 'esports-valorant' | 'esports-bgmi',
+  prefill: { name: string; email: string; contact: string },
+  label: string
+) {
   return collectPaymentWithOptions(event, prefill, label);
 }
 
 export async function collectPaymentWithOptions(
-  event: 'hackathon' | 'robo-race' | 'workshops',
+  event: 'hackathon' | 'robo-race' | 'workshops' | 'kinetic-showdown' | 'esports-valorant' | 'esports-bgmi',
   prefill: { name: string; email: string; contact: string },
   label: string,
   options?: { memberCount?: number }

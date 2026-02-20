@@ -24,6 +24,7 @@ export default function Culture() {
         <div className="cards-grid">
           {events.map(event => (
             <div className="card" key={event.id}>
+              {event.imageUrl && <img src={event.imageUrl} alt={event.title} style={{ width: '100%', borderRadius: '14px', marginBottom: '12px' }} />}
               <h4>{event.title}</h4>
               <p className="team-preview">{event.preview}</p>
               <p>{event.description}</p>

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { fetchJson } from '../../lib/api';
 import { collectPayment } from '../../lib/payment';
+import { redirectToWhatsApp, WHATSAPP_LINKS } from '../../lib/eventLinks';
 
 type RegisterResponse = { message: string };
 
@@ -24,7 +25,8 @@ export default function Hackathon() {
     teamName: '',
     contactName: '',
     contactEmail: '',
-    contactPhone: ''
+    contactPhone: '',
+    collegeName: ''
   });
   const [members, setMembers] = useState<HackathonMember[]>(createMembers());
   const [result, setResult] = useState('');
@@ -47,7 +49,7 @@ export default function Hackathon() {
       const payment = await collectPayment(
         'hackathon',
         { name: form.contactName, email: form.contactEmail, contact: form.contactPhone },
-        'Hackathon'
+        'Cube# Hackathon'
       );
 
       const res = await fetchJson<RegisterResponse>('/api/hackathon/register', {
@@ -64,9 +66,11 @@ export default function Hackathon() {
         teamName: '',
         contactName: '',
         contactEmail: '',
-        contactPhone: ''
+        contactPhone: '',
+        collegeName: ''
       });
       setMembers(createMembers());
+      redirectToWhatsApp(WHATSAPP_LINKS.hackathon);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to complete registration');
     } finally {
@@ -76,10 +80,39 @@ export default function Hackathon() {
 
   return (
     <section className="section">
-      <h2 className="section-title">Unstop Hackathon</h2>
+      <h2 className="section-title">Cube# Hackathon</h2>
       <p className="section-subtitle">
-        Register one team with exactly 4 members. At least one member must be female. Team code is not required.
+        12-hour hackathon with internship interview opportunities, product building, and live stage presentations.
       </p>
+
+      <div className="cards-grid" style={{ marginTop: '24px' }}>
+        <div className="card">
+          <h4>Hackathon Sponsors</h4>
+          <div className="sponsor-row">
+            <img src="/time.png" alt="Time sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
+            <img src="/upgrad.png" alt="upGrad sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
+          </div>
+          <p style={{ marginTop: '12px' }}>Sponsors: TIME and upGrad.</p>
+        </div>
+        <div className="card">
+          <h4>Workshop Partners</h4>
+          <div className="sponsor-row">
+            <img src="/time.png" alt="TIME workshop" onError={e => ((e.currentTarget.style.display = 'none'))} />
+            <img src="/upgrad.png" alt="upGrad workshop" onError={e => ((e.currentTarget.style.display = 'none'))} />
+          </div>
+        </div>
+      </div>
+
+      <div className="banner" style={{ marginTop: '22px' }}>
+        <h4 style={{ marginTop: 0 }}>Why Join Cube# Hackathon</h4>
+        <ul>
+          <li>Registration fee: INR 300 per team.</li>
+          <li>100% internship opportunity path: 10 participants will be shortlisted for internship interviews at upGrad or TIME.</li>
+          <li>Refreshments will be provided during the hackathon.</li>
+          <li>Strong exposure for students across Jabalpur.</li>
+          <li>Teams will build a complete product and present it live on stage.</li>
+        </ul>
+      </div>
 
       <div className="card" style={{ marginTop: '24px' }}>
         <h4>Hackathon Team Registration</h4>
@@ -107,6 +140,12 @@ export default function Hackathon() {
             placeholder="Contact phone"
             value={form.contactPhone}
             onChange={e => setForm({ ...form, contactPhone: e.target.value })}
+            required
+          />
+          <input
+            placeholder="College name"
+            value={form.collegeName}
+            onChange={e => setForm({ ...form, collegeName: e.target.value })}
             required
           />
 

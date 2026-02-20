@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchJson } from '../../lib/api';
 import { getSecretAdminToken, isSecretAdminUnlocked, unlockSecretAdmin } from '../../lib/adminAuth';
-import { HackathonRegistration, RoboRegistration, WorkshopRegistration } from '../../lib/types';
+import { EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRegistration, WorkshopRegistration } from '../../lib/types';
 
 function formatMembersForHackathon(item: HackathonRegistration) {
   return item.members
@@ -12,7 +12,7 @@ function formatMembersForHackathon(item: HackathonRegistration) {
 
 function formatMembersForRobo(item: RoboRegistration) {
   return item.members
-    .map((member, index) => `${index + 1}. ${member.name} | ${member.email} | ${member.phone}`)
+    .map((member, index) => `${index + 1}. ${member.name} | ${member.email} | ${member.phone} | ${member.branch} | ${member.semester} | ${member.collegeName}`)
     .join('\n');
 }
 
@@ -24,6 +24,8 @@ export default function AdminRegistrations() {
   const [hackathon, setHackathon] = useState<HackathonRegistration[]>([]);
   const [workshops, setWorkshops] = useState<WorkshopRegistration[]>([]);
   const [roboRace, setRoboRace] = useState<RoboRegistration[]>([]);
+  const [esports, setEsports] = useState<EsportsRegistration[]>([]);
+  const [openMic, setOpenMic] = useState<OpenMicRegistration[]>([]);
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -39,9 +41,17 @@ export default function AdminRegistrations() {
       .then(data => setWorkshops(Array.isArray(data) ? data : []))
       .catch(() => setWorkshops([]));
 
-    fetchJson<RoboRegistration[]>('/api/admin/registrations/robo-race', { headers })
+    fetchJson<RoboRegistration[]>('/api/admin/registrations/kinetic-showdown', { headers })
       .then(data => setRoboRace(Array.isArray(data) ? data : []))
       .catch(() => setRoboRace([]));
+
+    fetchJson<EsportsRegistration[]>('/api/admin/registrations/esports', { headers })
+      .then(data => setEsports(Array.isArray(data) ? data : []))
+      .catch(() => setEsports([]));
+
+    fetchJson<OpenMicRegistration[]>('/api/admin/registrations/open-mic', { headers })
+      .then(data => setOpenMic(Array.isArray(data) ? data : []))
+      .catch(() => setOpenMic([]));
   }, [isUnlocked]);
 
   const handleUnlock = (e: React.FormEvent) => {
@@ -115,6 +125,7 @@ export default function AdminRegistrations() {
                       <strong>{item.contactName}</strong>
                       <p>{item.contactEmail}</p>
                       <p>{item.contactPhone}</p>
+                      <p>{item.collegeName}</p>
                     </td>
                     <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>{formatMembersForHackathon(item)}</td>
                     <td>
@@ -140,6 +151,7 @@ export default function AdminRegistrations() {
                 <th>Name</th>
                 <th>Email</th>
                 <th>Phone</th>
+                <th>College</th>
                 <th>Payment</th>
                 <th>Created</th>
               </tr>
@@ -147,7 +159,7 @@ export default function AdminRegistrations() {
             <tbody>
               {workshops.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>No registrations yet.</td>
+                  <td colSpan={7}>No registrations yet.</td>
                 </tr>
               ) : (
                 workshops.map(item => (
@@ -156,6 +168,7 @@ export default function AdminRegistrations() {
                     <td>{item.name}</td>
                     <td>{item.email}</td>
                     <td>{item.phone}</td>
+                    <td>{item.collegeName}</td>
                     <td>
                       <strong>{item.paymentStatus || 'unknown'}</strong>
                       <p>{item.paymentId || '-'}</p>
@@ -170,13 +183,13 @@ export default function AdminRegistrations() {
       </div>
 
       <div className="card" style={{ marginTop: '22px' }}>
-        <h4>Robo Race Teams</h4>
+        <h4>Kinetic Showdown Teams</h4>
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
               <tr>
                 <th>Team</th>
-                <th>Captain</th>
+                <th>Team Leader</th>
                 <th>Members</th>
                 <th>Payment</th>
                 <th>Created</th>
@@ -192,7 +205,7 @@ export default function AdminRegistrations() {
                   <tr key={item.id}>
                     <td>
                       <strong>{item.teamName}</strong>
-                      <p>Robot: {item.robotName}</p>
+                      <p>College: {item.collegeName}</p>
                       <p>Team size: {item.memberCount}</p>
                     </td>
                     <td>
@@ -204,6 +217,99 @@ export default function AdminRegistrations() {
                     <td>
                       <strong>{item.paymentStatus || 'unknown'}</strong>
                       <p>{item.paymentId || '-'}</p>
+                    </td>
+                    <td>{item.createdAt}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '22px' }}>
+        <h4>eSports Teams</h4>
+        <div className="table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Team</th>
+                <th>Leader</th>
+                <th>Players</th>
+                <th>Payment</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {esports.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No registrations yet.</td>
+                </tr>
+              ) : (
+                esports.map(item => (
+                  <tr key={item.id}>
+                    <td>
+                      <strong>{item.teamName}</strong>
+                      <p>Game: {item.game}</p>
+                      <p>College: {item.collegeName}</p>
+                    </td>
+                    <td>
+                      <strong>{item.teamLeaderName}</strong>
+                      <p>{item.teamLeaderEmail}</p>
+                      <p>{item.teamLeaderPhone}</p>
+                    </td>
+                    <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>
+                      {item.members.map((member, index) => `${index + 1}. ${member.name} | ${member.branch} | ${member.semester} | ${member.collegeName}`).join('\n')}
+                    </td>
+                    <td>
+                      <strong>{item.paymentStatus || 'unknown'}</strong>
+                      <p>{item.paymentId || '-'}</p>
+                    </td>
+                    <td>{item.createdAt}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '22px' }}>
+        <h4>Open Mic Registrations</h4>
+        <div className="table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Enrollment</th>
+                <th>Performance</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {openMic.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No registrations yet.</td>
+                </tr>
+              ) : (
+                openMic.map(item => (
+                  <tr key={item.id}>
+                    <td>
+                      <strong>{item.name}</strong>
+                      <p>{item.collegeName}</p>
+                    </td>
+                    <td>
+                      <p>{item.email}</p>
+                      <p>{item.phone}</p>
+                    </td>
+                    <td>
+                      <p>{item.enrollmentNumber}</p>
+                      <p>{item.year}</p>
+                    </td>
+                    <td>
+                      <p>{item.performanceType}</p>
+                      <p>{item.scriptPdfUrl || '-'}</p>
                     </td>
                     <td>{item.createdAt}</td>
                   </tr>

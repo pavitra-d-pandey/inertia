@@ -2,9 +2,11 @@ import { Link, NavLink } from 'react-router-dom';
 
 const navItems = [
   { to: '/', label: 'Home' },
-  { to: '/hackathon', label: 'Hackathon' },
+  { to: '/hackathon', label: 'Cube# Hackathon' },
   { to: '/workshops', label: 'Workshops' },
-  { to: '/robo-race', label: 'Robo Race' },
+  { to: '/kinetic-showdown', label: 'Kinetic Showdown' },
+  { to: '/esports', label: 'eSports' },
+  { to: '/open-mic', label: 'Open Mic' },
   { to: '/culture', label: 'Culture' },
   { to: '/gallery', label: 'Gallery' },
   { to: '/team', label: 'Team' }

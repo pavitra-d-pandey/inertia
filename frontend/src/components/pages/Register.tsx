@@ -9,16 +9,16 @@ export default function Register() {
       <div className="cards-grid" style={{ marginTop: '24px' }}>
         <div className="card">
           <h4>Hackathon</h4>
-          <p>4-member team registration with payment.</p>
+          <p>Cube# 12-hour hackathon registration.</p>
           <Link className="btn btn-primary" to="/hackathon">
             Register Hackathon
           </Link>
         </div>
         <div className="card">
-          <h4>Robo Race</h4>
-          <p>Choose team size and register all members.</p>
-          <Link className="btn btn-primary" to="/robo-race">
-            Register Robo Race
+          <h4>Kinetic Showdown</h4>
+          <p>RC car competition. Team fee INR 300.</p>
+          <Link className="btn btn-primary" to="/kinetic-showdown">
+            Register Kinetic Showdown
           </Link>
         </div>
         <div className="card">
@@ -26,6 +26,20 @@ export default function Register() {
           <p>Pick your workshop and complete payment.</p>
           <Link className="btn btn-primary" to="/workshops">
             Register Workshop
+          </Link>
+        </div>
+        <div className="card">
+          <h4>eSports</h4>
+          <p>Valorant (INR 249) or BGMI (INR 99).</p>
+          <Link className="btn btn-primary" to="/esports">
+            Register eSports
+          </Link>
+        </div>
+        <div className="card">
+          <h4>Open Mic</h4>
+          <p>Free registration with performance details.</p>
+          <Link className="btn btn-primary" to="/open-mic">
+            Register Open Mic
           </Link>
         </div>
       </div>
