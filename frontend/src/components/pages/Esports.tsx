@@ -67,8 +67,8 @@ export default function Esports() {
           ...payment
         })
       });
-      setResult(res.message);
-      redirectToWhatsApp(WHATSAPP_LINKS.esports);
+      setResult(`${res.message} Redirecting to WhatsApp group...`);
+      setTimeout(() => redirectToWhatsApp(WHATSAPP_LINKS.esports), 1400);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to register');
     } finally {

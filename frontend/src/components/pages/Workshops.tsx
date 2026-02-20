@@ -53,7 +53,7 @@ export default function Workshops() {
           ...payment
         })
       });
-      setResult(res.message);
+      setResult(`${res.message} Redirecting to WhatsApp group...`);
       setForm(prev => ({
         name: '',
         email: '',
@@ -61,7 +61,7 @@ export default function Workshops() {
         collegeName: '',
         workshopId: prev.workshopId
       }));
-      redirectToWhatsApp(WHATSAPP_LINKS.workshops);
+      setTimeout(() => redirectToWhatsApp(WHATSAPP_LINKS.workshops), 1400);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to register');
     } finally {
@@ -73,14 +73,6 @@ export default function Workshops() {
     <section className="section">
       <h2 className="section-title">Workshops</h2>
       <p className="section-subtitle">Choose your workshop and complete registration.</p>
-
-      <div className="card" style={{ marginTop: '18px' }}>
-        <h4>Workshop Sponsors</h4>
-        <div className="sponsor-row">
-          <img src="/time.png" alt="TIME workshop sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
-          <img src="/upgrad.png" alt="upGrad workshop sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
-        </div>
-      </div>
 
       <div className="cards-grid">
         {workshops.map(workshop => (

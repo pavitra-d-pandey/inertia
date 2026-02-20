@@ -53,8 +53,8 @@ export default function OpenMic() {
           scriptPdfUrl
         })
       });
-      setResult(res.message);
-      redirectToWhatsApp(WHATSAPP_LINKS.openMic);
+      setResult(`${res.message} Redirecting to WhatsApp group...`);
+      setTimeout(() => redirectToWhatsApp(WHATSAPP_LINKS.openMic), 1400);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to register');
     } finally {

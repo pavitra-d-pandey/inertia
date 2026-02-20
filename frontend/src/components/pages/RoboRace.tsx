@@ -84,7 +84,7 @@ export default function RoboRace() {
           ...payment
         })
       });
-      setResult(res.message);
+      setResult(`${res.message} Redirecting to WhatsApp group...`);
       setForm({
         teamName: '',
         teamLeaderName: '',
@@ -97,7 +97,7 @@ export default function RoboRace() {
         { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' },
         { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' }
       ]);
-      redirectToWhatsApp(WHATSAPP_LINKS.kineticShowdown);
+      setTimeout(() => redirectToWhatsApp(WHATSAPP_LINKS.kineticShowdown), 1400);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to register');
     } finally {

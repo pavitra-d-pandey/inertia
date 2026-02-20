@@ -61,7 +61,7 @@ export default function Hackathon() {
         })
       });
 
-      setResult(res.message);
+      setResult(`${res.message} Redirecting to WhatsApp group...`);
       setForm({
         teamName: '',
         contactName: '',
@@ -70,7 +70,7 @@ export default function Hackathon() {
         collegeName: ''
       });
       setMembers(createMembers());
-      redirectToWhatsApp(WHATSAPP_LINKS.hackathon);
+      setTimeout(() => redirectToWhatsApp(WHATSAPP_LINKS.hackathon), 1400);
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to complete registration');
     } finally {
@@ -89,17 +89,10 @@ export default function Hackathon() {
         <div className="card">
           <h4>Hackathon Sponsors</h4>
           <div className="sponsor-row">
-            <img src="/time.png" alt="Time sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
-            <img src="/upgrad.png" alt="upGrad sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
+            <img className="sponsor-logo" src="/time.png" alt="Time sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
+            <img className="sponsor-logo" src="/upgrad.png" alt="upGrad sponsor" onError={e => ((e.currentTarget.style.display = 'none'))} />
           </div>
           <p style={{ marginTop: '12px' }}>Sponsors: TIME and upGrad.</p>
-        </div>
-        <div className="card">
-          <h4>Workshop Partners</h4>
-          <div className="sponsor-row">
-            <img src="/time.png" alt="TIME workshop" onError={e => ((e.currentTarget.style.display = 'none'))} />
-            <img src="/upgrad.png" alt="upGrad workshop" onError={e => ((e.currentTarget.style.display = 'none'))} />
-          </div>
         </div>
       </div>
 
@@ -107,6 +100,7 @@ export default function Hackathon() {
         <h4 style={{ marginTop: 0 }}>Why Join Cube# Hackathon</h4>
         <ul>
           <li>Registration fee: INR 300 per team.</li>
+          <li>Problem statements will be revealed on the spot.</li>
           <li>100% internship opportunity path: 10 participants will be shortlisted for internship interviews at upGrad or TIME.</li>
           <li>Refreshments will be provided during the hackathon.</li>
           <li>Strong exposure for students across Jabalpur.</li>

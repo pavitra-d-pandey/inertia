@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/smtp"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -1114,74 +1115,92 @@ func (h *Handler) getRoboRegistrations(c *gin.Context) {
 	ctx, cancel := h.ctx()
 	defer cancel()
 
-	cursor, err := h.DB.Collection("kinetic_showdown_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
-	legacyMode := false
-	if err != nil {
-		cursor, err = h.DB.Collection("robo_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
-		legacyMode = true
+	var items []models.RoboRegistration
+	appendFromCursor := func(cursor *mongo.Cursor, legacyMode bool) {
+		defer cursor.Close(ctx)
+		for cursor.Next(ctx) {
+			var reg struct {
+				ID             int64  `bson:"id"`
+				TeamName       string `bson:"teamName"`
+				TeamLeaderName string `bson:"teamLeaderName"`
+				Email          string `bson:"email"`
+				Phone          string `bson:"phone"`
+				CollegeName    string `bson:"collegeName"`
+				MemberCount    int    `bson:"memberCount"`
+				Members        []struct {
+					Name        string `bson:"name"`
+					Email       string `bson:"email"`
+					Phone       string `bson:"phone"`
+					Branch      string `bson:"branch"`
+					Semester    string `bson:"semester"`
+					CollegeName string `bson:"collegeName"`
+				} `bson:"members"`
+				Payment struct {
+					Status            string `bson:"status"`
+					RazorpayOrderID   string `bson:"razorpayOrderId"`
+					RazorpayPaymentID string `bson:"razorpayPaymentId"`
+				} `bson:"payment"`
+				CreatedAt time.Time `bson:"createdAt"`
+			}
+			if err := cursor.Decode(&reg); err == nil {
+				if legacyMode {
+					if reg.TeamLeaderName == "" {
+						reg.TeamLeaderName = reg.TeamName
+					}
+					if reg.CollegeName == "" {
+						reg.CollegeName = "N/A"
+					}
+				}
+				members := make([]models.RoboMember, 0, len(reg.Members))
+				for _, m := range reg.Members {
+					memberCollege := m.CollegeName
+					if memberCollege == "" {
+						memberCollege = reg.CollegeName
+					}
+					members = append(members, models.RoboMember{
+						Name:        m.Name,
+						Email:       m.Email,
+						Phone:       m.Phone,
+						Branch:      m.Branch,
+						Semester:    m.Semester,
+						CollegeName: memberCollege,
+					})
+				}
+				items = append(items, models.RoboRegistration{
+					ID:            reg.ID,
+					TeamName:      reg.TeamName,
+					CaptainName:   reg.TeamLeaderName,
+					Email:         reg.Email,
+					Phone:         reg.Phone,
+					RobotName:     "Kinetic Showdown Team",
+					CollegeName:   reg.CollegeName,
+					MemberCount:   maxInt(reg.MemberCount, len(members)),
+					Members:       members,
+					PaymentStatus: reg.Payment.Status,
+					PaymentID:     reg.Payment.RazorpayPaymentID,
+					CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
+				})
+			}
+		}
 	}
-	if err != nil {
+
+	newCursor, err := h.DB.Collection("kinetic_showdown_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	if err == nil {
+		appendFromCursor(newCursor, false)
+	}
+	legacyCursor, legacyErr := h.DB.Collection("robo_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	if legacyErr == nil {
+		appendFromCursor(legacyCursor, true)
+	}
+
+	if err != nil && legacyErr != nil {
 		c.JSON(http.StatusOK, []models.RoboRegistration{})
 		return
 	}
-	defer cursor.Close(ctx)
 
-	var items []models.RoboRegistration
-	for cursor.Next(ctx) {
-		var reg struct {
-			ID             int64  `bson:"id"`
-			TeamName       string `bson:"teamName"`
-			TeamLeaderName string `bson:"teamLeaderName"`
-			Email          string `bson:"email"`
-			Phone          string `bson:"phone"`
-			CollegeName    string `bson:"collegeName"`
-			MemberCount    int    `bson:"memberCount"`
-			Members        []struct {
-				Name        string `bson:"name"`
-				Email       string `bson:"email"`
-				Phone       string `bson:"phone"`
-				Branch      string `bson:"branch"`
-				Semester    string `bson:"semester"`
-				CollegeName string `bson:"collegeName"`
-			} `bson:"members"`
-			Payment struct {
-				Status            string `bson:"status"`
-				RazorpayOrderID   string `bson:"razorpayOrderId"`
-				RazorpayPaymentID string `bson:"razorpayPaymentId"`
-			} `bson:"payment"`
-			CreatedAt time.Time `bson:"createdAt"`
-		}
-		if err := cursor.Decode(&reg); err == nil {
-			if legacyMode && reg.TeamLeaderName == "" {
-				reg.TeamLeaderName = reg.TeamName
-			}
-			members := make([]models.RoboMember, 0, len(reg.Members))
-			for _, m := range reg.Members {
-				members = append(members, models.RoboMember{
-					Name:        m.Name,
-					Email:       m.Email,
-					Phone:       m.Phone,
-					Branch:      m.Branch,
-					Semester:    m.Semester,
-					CollegeName: m.CollegeName,
-				})
-			}
-			items = append(items, models.RoboRegistration{
-				ID:            reg.ID,
-				TeamName:      reg.TeamName,
-				CaptainName:   reg.TeamLeaderName,
-				Email:         reg.Email,
-				Phone:         reg.Phone,
-				RobotName:     "Kinetic Showdown Team",
-				CollegeName:   reg.CollegeName,
-				MemberCount:   maxInt(reg.MemberCount, len(members)),
-				Members:       members,
-				PaymentStatus: reg.Payment.Status,
-				PaymentID:     reg.Payment.RazorpayPaymentID,
-				CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
-			})
-		}
-	}
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].CreatedAt > items[j].CreatedAt
+	})
 	c.JSON(http.StatusOK, items)
 }
 
