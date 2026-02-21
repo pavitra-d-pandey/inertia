@@ -9,18 +9,20 @@ type EsportsMember = {
   name: string;
   branch: string;
   semester: string;
-  collegeName: string;
+  gameId: string;
 };
 
 function createMembers(count: number): EsportsMember[] {
-  return Array.from({ length: count }, () => ({ name: '', branch: '', semester: '', collegeName: '' }));
+  return Array.from({ length: count }, () => ({ name: '', branch: '', semester: '', gameId: '' }));
 }
 
 export default function Esports() {
   const [game, setGame] = useState<'valorant' | 'bgmi'>('valorant');
   const [form, setForm] = useState({
     teamName: '',
+    isCollegeParticipant: 'yes' as 'yes' | 'no',
     collegeName: '',
+    gameId: '',
     teamLeaderName: '',
     teamLeaderEmail: '',
     teamLeaderPhone: ''
@@ -30,7 +32,7 @@ export default function Esports() {
   const [result, setResult] = useState('');
 
   const requiredCount = useMemo(() => (game === 'valorant' ? 5 : 4), [game]);
-  const feeLabel = game === 'valorant' ? 'INR 249' : 'INR 99';
+  const feeLabel = game === 'valorant' ? 'INR 300' : 'INR 200';
   const paymentEvent = game === 'valorant' ? 'esports-valorant' : 'esports-bgmi';
 
   const onGameChange = (value: 'valorant' | 'bgmi') => {
@@ -53,15 +55,14 @@ export default function Esports() {
         `eSports ${game.toUpperCase()}`
       );
 
-      const payloadMembers = members.map(member => ({
-        ...member,
-        collegeName: member.collegeName || form.collegeName
-      }));
+      const payloadMembers = members.map(member => ({ ...member }));
 
       const res = await fetchJson<RegisterResponse>('/api/esports/register', {
         method: 'POST',
         body: JSON.stringify({
           ...form,
+          isCollegeParticipant: form.isCollegeParticipant === 'yes',
+          collegeName: form.isCollegeParticipant === 'yes' ? form.collegeName.trim() : '',
           game,
           members: payloadMembers,
           ...payment
@@ -79,7 +80,7 @@ export default function Esports() {
   return (
     <section className="section">
       <h2 className="section-title">eSports</h2>
-      <p className="section-subtitle">Select game first: Valorant (5 players, INR 249) or BGMI (4 players, INR 99).</p>
+      <p className="section-subtitle">Select game first: Valorant (5 players, INR 300 per team) or BGMI (4 players, INR 200 per team).</p>
 
       <div className="card" style={{ marginTop: '24px' }}>
         <h4>eSports Registration</h4>
@@ -89,7 +90,14 @@ export default function Esports() {
             <option value="bgmi">BGMI (4 players)</option>
           </select>
           <input placeholder="Team name" value={form.teamName} onChange={e => setForm({ ...form, teamName: e.target.value })} required />
-          <input placeholder="College name" value={form.collegeName} onChange={e => setForm({ ...form, collegeName: e.target.value })} required />
+          <select value={form.isCollegeParticipant} onChange={e => setForm({ ...form, isCollegeParticipant: e.target.value as 'yes' | 'no' })}>
+            <option value="yes">Are you from a college? Yes</option>
+            <option value="no">Are you from a college? No</option>
+          </select>
+          {form.isCollegeParticipant === 'yes' && (
+            <input placeholder="College name" value={form.collegeName} onChange={e => setForm({ ...form, collegeName: e.target.value })} required />
+          )}
+          <input placeholder="Team game ID" value={form.gameId} onChange={e => setForm({ ...form, gameId: e.target.value })} required />
           <input placeholder="Team leader name" value={form.teamLeaderName} onChange={e => setForm({ ...form, teamLeaderName: e.target.value })} required />
           <input placeholder="Team leader email" type="email" value={form.teamLeaderEmail} onChange={e => setForm({ ...form, teamLeaderEmail: e.target.value })} required />
           <input placeholder="Team leader phone" value={form.teamLeaderPhone} onChange={e => setForm({ ...form, teamLeaderPhone: e.target.value })} required />
@@ -101,7 +109,7 @@ export default function Esports() {
                 <input placeholder="Name" value={member.name} onChange={e => updateMember(index, 'name', e.target.value)} required />
                 <input placeholder="Branch" value={member.branch} onChange={e => updateMember(index, 'branch', e.target.value)} required />
                 <input placeholder="Semester / Year" value={member.semester} onChange={e => updateMember(index, 'semester', e.target.value)} required />
-                <input placeholder="College name" value={member.collegeName} onChange={e => updateMember(index, 'collegeName', e.target.value)} required />
+                <input placeholder="Game ID" value={member.gameId} onChange={e => updateMember(index, 'gameId', e.target.value)} required />
               </div>
             </div>
           ))}

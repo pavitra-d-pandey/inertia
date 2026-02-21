@@ -6,13 +6,13 @@ import { EventInfo, FAQ, GalleryItem, LandingContent } from '../../lib/types';
 const fallbackLanding: LandingContent = {
   heroTitle: 'INERTIA 2.0: JEC Annual Tech Fest',
   heroSubtitle:
-    'The flagship annual festival at Jabalpur Engineering College, featuring CodeHunt Hackathon, Workshops, Kinetic Showdown, eSports, Open Mic, and culture.',
+    'The flagship annual festival at Jabalpur Engineering College, featuring Hackathon, Workshops, Robo Race, eSports, Open Mic, and culture.',
   dates: 'Coming 2026',
   location: 'Jabalpur Engineering College, Jabalpur, Madhya Pradesh',
   highlights: [
-    'CodeHunt Hackathon',
+    'Hackathon',
     'Workshop Series',
-    'Kinetic Showdown',
+    'Robo Race',
     'eSports Arena',
     'Open Mic Stage',
     'DJ Night & Culture Fest',
@@ -23,7 +23,7 @@ const fallbackEvents: EventInfo[] = [
   {
     id: 1,
     slug: 'hackathon',
-    title: 'CodeHunt Hackathon',
+    title: 'Hackathon',
     description: '12-hour hackathon, INR 300/team, on-spot problem statements, and internship interview opportunities.',
     dateLabel: '12 Hours',
     ctaLabel: 'Register Hackathon'
@@ -38,11 +38,11 @@ const fallbackEvents: EventInfo[] = [
   },
   {
     id: 3,
-    slug: 'kinetic-showdown',
-    title: 'Kinetic Showdown',
+    slug: 'robo-race',
+    title: 'Robo Race',
     description: 'RC car design and race challenge with teams of 2 to 4 members.',
     dateLabel: 'Final Day',
-    ctaLabel: 'Register Team'
+    ctaLabel: 'Register Robo Race'
   },
   {
     id: 4,
@@ -63,27 +63,38 @@ const fallbackEvents: EventInfo[] = [
 ];
 
 const fallbackFaqs: FAQ[] = [
-  { id: 1, question: 'How long is CodeHunt Hackathon?', answer: 'CodeHunt is a 12-hour hackathon.' },
-  { id: 2, question: 'What is the hackathon registration fee?', answer: 'The CodeHunt registration fee is INR 300 per team.' },
+  { id: 1, question: 'How long is Hackathon?', answer: 'Hackathon is a 12-hour event.' },
+  { id: 2, question: 'What is the hackathon registration fee?', answer: 'The Hackathon registration fee is INR 300 per team.' },
   { id: 3, question: 'What are the eSports team sizes?', answer: 'Valorant needs 5 players, BGMI needs 4 players.' },
   { id: 4, question: 'When are hackathon problem statements announced?', answer: 'Problem statements are revealed on the spot.' },
-  { id: 5, question: 'Can I register for multiple events?', answer: 'Yes, you can register for Hackathon, Workshops, Kinetic Showdown, eSports, and Open Mic.' }
+  { id: 5, question: 'Can I register for multiple events?', answer: 'Yes, you can register for Hackathon, Workshops, Robo Race, eSports, and Open Mic.' }
 ];
+
+function normalizeLegacyText(value: string) {
+  return value
+    .replace(/CodeHunt Hackathon/gi, 'Hackathon')
+    .replace(/Kinetic Showdown/gi, 'Robo Race');
+}
+
+function normalizeHighlights(items: string[]) {
+  return items.map(item => normalizeLegacyText(item));
+}
 
 function normalizeEvents(data: EventInfo[]): EventInfo[] {
   const normalized = data.map(event => {
-    if (event.slug === 'robo-race') {
+    if (event.slug === 'robo-race' || event.slug === 'kinetic-showdown') {
       return {
         ...event,
-        slug: 'kinetic-showdown',
-        title: 'Kinetic Showdown',
-        ctaLabel: 'Register Team'
+        slug: 'robo-race',
+        title: 'Robo Race',
+        ctaLabel: 'Register Robo Race'
       };
     }
     if (event.slug === 'hackathon') {
       return {
         ...event,
-        title: 'CodeHunt Hackathon'
+        title: 'Hackathon',
+        ctaLabel: 'Register Hackathon'
       };
     }
     return event;
@@ -114,7 +125,8 @@ export default function Home() {
         setLanding({
           ...fallbackLanding,
           ...data,
-          highlights: Array.isArray(data?.highlights) ? data.highlights : fallbackLanding.highlights
+          heroSubtitle: normalizeLegacyText(data?.heroSubtitle || fallbackLanding.heroSubtitle),
+          highlights: Array.isArray(data?.highlights) ? normalizeHighlights(data.highlights) : fallbackLanding.highlights
         })
       )
       .catch(() => null);
@@ -125,7 +137,13 @@ export default function Home() {
       .then(data => setGallery(Array.isArray(data) ? data : []))
       .catch(() => setGallery([]));
     fetchJson<FAQ[]>('/api/faqs')
-      .then(data => setFaqs(Array.isArray(data) ? data : fallbackFaqs))
+      .then(data =>
+        setFaqs(
+          Array.isArray(data)
+            ? data.map(faq => ({ ...faq, question: normalizeLegacyText(faq.question), answer: normalizeLegacyText(faq.answer) }))
+            : fallbackFaqs
+        )
+      )
       .catch(() => null);
   }, []);
 
@@ -142,7 +160,7 @@ export default function Home() {
                 Register Now
               </Link>
               <Link className="btn btn-ghost" to="/hackathon">
-                CodeHunt Registration
+                Hackathon Registration
               </Link>
             </div>
             <div className="pillars">
@@ -224,7 +242,7 @@ export default function Home() {
 
       <section className="section dark">
         <h2 className="section-title">Core Events</h2>
-        <p className="section-subtitle">CodeHunt Hackathon, Workshops, Kinetic Showdown, eSports, and Open Mic with dedicated registration flows.</p>
+        <p className="section-subtitle">Hackathon, Workshops, Robo Race, eSports, and Open Mic with dedicated registration flows.</p>
         <div className="event-grid">
           {(events && events.length > 0 ? events : fallbackEvents).map(event => (
             <div className="event-card" key={event.id}>

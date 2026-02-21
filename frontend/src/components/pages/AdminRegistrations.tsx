@@ -251,7 +251,8 @@ export default function AdminRegistrations() {
                     <td>
                       <strong>{item.teamName}</strong>
                       <p>Game: {item.game}</p>
-                      <p>College: {item.collegeName}</p>
+                      <p>Team Game ID: {item.gameId || '-'}</p>
+                      <p>{item.isCollegeParticipant ? `College: ${item.collegeName || '-'}` : 'Not a college team'}</p>
                     </td>
                     <td>
                       <strong>{item.teamLeaderName}</strong>
@@ -259,7 +260,7 @@ export default function AdminRegistrations() {
                       <p>{item.teamLeaderPhone}</p>
                     </td>
                     <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>
-                      {item.members.map((member, index) => `${index + 1}. ${member.name} | ${member.branch} | ${member.semester} | ${member.collegeName}`).join('\n')}
+                      {item.members.map((member, index) => `${index + 1}. ${member.name} | ${member.branch} | ${member.semester} | ${member.gameId || '-'} | ${member.collegeName || '-'}`).join('\n')}
                     </td>
                     <td>
                       <strong>{item.paymentStatus || 'unknown'}</strong>

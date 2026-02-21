@@ -117,22 +117,25 @@ type EsportsMember struct {
 	Name        string `json:"name"`
 	Branch      string `json:"branch"`
 	Semester    string `json:"semester"`
+	GameID      string `json:"gameId"`
 	CollegeName string `json:"collegeName"`
 }
 
 type EsportsRegistration struct {
-	ID              int64           `json:"id"`
-	TeamName        string          `json:"teamName"`
-	Game            string          `json:"game"`
-	CollegeName     string          `json:"collegeName"`
-	TeamLeaderName  string          `json:"teamLeaderName"`
-	TeamLeaderEmail string          `json:"teamLeaderEmail"`
-	TeamLeaderPhone string          `json:"teamLeaderPhone"`
-	MemberCount     int             `json:"memberCount"`
-	Members         []EsportsMember `json:"members"`
-	PaymentStatus   string          `json:"paymentStatus"`
-	PaymentID       string          `json:"paymentId"`
-	CreatedAt       string          `json:"createdAt"`
+	ID                   int64           `json:"id"`
+	TeamName             string          `json:"teamName"`
+	Game                 string          `json:"game"`
+	GameID               string          `json:"gameId"`
+	IsCollegeParticipant bool            `json:"isCollegeParticipant"`
+	CollegeName          string          `json:"collegeName"`
+	TeamLeaderName       string          `json:"teamLeaderName"`
+	TeamLeaderEmail      string          `json:"teamLeaderEmail"`
+	TeamLeaderPhone      string          `json:"teamLeaderPhone"`
+	MemberCount          int             `json:"memberCount"`
+	Members              []EsportsMember `json:"members"`
+	PaymentStatus        string          `json:"paymentStatus"`
+	PaymentID            string          `json:"paymentId"`
+	CreatedAt            string          `json:"createdAt"`
 }
 
 type OpenMicRegistration struct {

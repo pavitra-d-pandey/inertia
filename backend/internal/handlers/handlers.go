@@ -482,16 +482,19 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 
 func (h *Handler) registerEsports(c *gin.Context) {
 	var req struct {
-		TeamName        string `json:"teamName"`
-		Game            string `json:"game"`
-		CollegeName     string `json:"collegeName"`
-		TeamLeaderName  string `json:"teamLeaderName"`
-		TeamLeaderEmail string `json:"teamLeaderEmail"`
-		TeamLeaderPhone string `json:"teamLeaderPhone"`
-		Members         []struct {
+		TeamName             string `json:"teamName"`
+		Game                 string `json:"game"`
+		GameID               string `json:"gameId"`
+		IsCollegeParticipant bool   `json:"isCollegeParticipant"`
+		CollegeName          string `json:"collegeName"`
+		TeamLeaderName       string `json:"teamLeaderName"`
+		TeamLeaderEmail      string `json:"teamLeaderEmail"`
+		TeamLeaderPhone      string `json:"teamLeaderPhone"`
+		Members              []struct {
 			Name        string `json:"name"`
 			Branch      string `json:"branch"`
 			Semester    string `json:"semester"`
+			GameID      string `json:"gameId"`
 			CollegeName string `json:"collegeName"`
 		} `json:"members"`
 		RazorpayOrderID   string `json:"razorpayOrderId"`
@@ -505,8 +508,12 @@ func (h *Handler) registerEsports(c *gin.Context) {
 
 	game := strings.ToLower(strings.TrimSpace(req.Game))
 	memberCount := len(req.Members)
-	if req.TeamName == "" || req.CollegeName == "" || req.TeamLeaderName == "" || req.TeamLeaderEmail == "" || req.TeamLeaderPhone == "" {
+	if req.TeamName == "" || req.GameID == "" || req.TeamLeaderName == "" || req.TeamLeaderEmail == "" || req.TeamLeaderPhone == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+	if req.IsCollegeParticipant && strings.TrimSpace(req.CollegeName) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "college name is required for college participants"})
 		return
 	}
 	if game != "valorant" && game != "bgmi" {
@@ -518,7 +525,7 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		return
 	}
 	for _, member := range req.Members {
-		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.Semester) == "" || strings.TrimSpace(member.CollegeName) == "" {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.Semester) == "" || strings.TrimSpace(member.GameID) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
 			return
 		}
@@ -537,15 +544,17 @@ func (h *Handler) registerEsports(c *gin.Context) {
 	}
 
 	_, err = h.DB.Collection("esports_registrations").InsertOne(ctx, bson.M{
-		"id":              id,
-		"teamName":        req.TeamName,
-		"game":            game,
-		"collegeName":     req.CollegeName,
-		"teamLeaderName":  req.TeamLeaderName,
-		"teamLeaderEmail": req.TeamLeaderEmail,
-		"teamLeaderPhone": req.TeamLeaderPhone,
-		"memberCount":     memberCount,
-		"members":         req.Members,
+		"id":                   id,
+		"teamName":             req.TeamName,
+		"game":                 game,
+		"gameId":               req.GameID,
+		"isCollegeParticipant": req.IsCollegeParticipant,
+		"collegeName":          req.CollegeName,
+		"teamLeaderName":       req.TeamLeaderName,
+		"teamLeaderEmail":      req.TeamLeaderEmail,
+		"teamLeaderPhone":      req.TeamLeaderPhone,
+		"memberCount":          memberCount,
+		"members":              req.Members,
 		"payment": bson.M{
 			"status":            "paid",
 			"razorpayOrderId":   req.RazorpayOrderID,
@@ -635,9 +644,9 @@ func (h *Handler) createRazorpayOrder(c *gin.Context) {
 	case "kinetic-showdown", "robo-race":
 		amount = 30000
 	case "esports-valorant":
-		amount = 24900
+		amount = 30000
 	case "esports-bgmi":
-		amount = 9900
+		amount = 20000
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event"})
 		return
@@ -1282,18 +1291,21 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 	var items []models.EsportsRegistration
 	for cursor.Next(ctx) {
 		var reg struct {
-			ID              int64  `bson:"id"`
-			TeamName        string `bson:"teamName"`
-			Game            string `bson:"game"`
-			CollegeName     string `bson:"collegeName"`
-			TeamLeaderName  string `bson:"teamLeaderName"`
-			TeamLeaderEmail string `bson:"teamLeaderEmail"`
-			TeamLeaderPhone string `bson:"teamLeaderPhone"`
-			MemberCount     int    `bson:"memberCount"`
-			Members         []struct {
+			ID                   int64  `bson:"id"`
+			TeamName             string `bson:"teamName"`
+			Game                 string `bson:"game"`
+			GameID               string `bson:"gameId"`
+			IsCollegeParticipant bool   `bson:"isCollegeParticipant"`
+			CollegeName          string `bson:"collegeName"`
+			TeamLeaderName       string `bson:"teamLeaderName"`
+			TeamLeaderEmail      string `bson:"teamLeaderEmail"`
+			TeamLeaderPhone      string `bson:"teamLeaderPhone"`
+			MemberCount          int    `bson:"memberCount"`
+			Members              []struct {
 				Name        string `bson:"name"`
 				Branch      string `bson:"branch"`
 				Semester    string `bson:"semester"`
+				GameID      string `bson:"gameId"`
 				CollegeName string `bson:"collegeName"`
 			} `bson:"members"`
 			Payment struct {
@@ -1309,22 +1321,25 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 					Name:        m.Name,
 					Branch:      m.Branch,
 					Semester:    m.Semester,
+					GameID:      m.GameID,
 					CollegeName: m.CollegeName,
 				})
 			}
 			items = append(items, models.EsportsRegistration{
-				ID:              reg.ID,
-				TeamName:        reg.TeamName,
-				Game:            reg.Game,
-				CollegeName:     reg.CollegeName,
-				TeamLeaderName:  reg.TeamLeaderName,
-				TeamLeaderEmail: reg.TeamLeaderEmail,
-				TeamLeaderPhone: reg.TeamLeaderPhone,
-				MemberCount:     maxInt(reg.MemberCount, len(members)),
-				Members:         members,
-				PaymentStatus:   reg.Payment.Status,
-				PaymentID:       reg.Payment.RazorpayPaymentID,
-				CreatedAt:       reg.CreatedAt.Format("2006-01-02 15:04:05"),
+				ID:                   reg.ID,
+				TeamName:             reg.TeamName,
+				Game:                 reg.Game,
+				GameID:               reg.GameID,
+				IsCollegeParticipant: reg.IsCollegeParticipant,
+				CollegeName:          reg.CollegeName,
+				TeamLeaderName:       reg.TeamLeaderName,
+				TeamLeaderEmail:      reg.TeamLeaderEmail,
+				TeamLeaderPhone:      reg.TeamLeaderPhone,
+				MemberCount:          maxInt(reg.MemberCount, len(members)),
+				Members:              members,
+				PaymentStatus:        reg.Payment.Status,
+				PaymentID:            reg.Payment.RazorpayPaymentID,
+				CreatedAt:            reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}

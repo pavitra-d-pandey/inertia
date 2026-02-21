@@ -105,6 +105,8 @@ export type EsportsRegistration = {
   id: number;
   teamName: string;
   game: string;
+  gameId: string;
+  isCollegeParticipant: boolean;
   collegeName: string;
   teamLeaderName: string;
   teamLeaderEmail: string;
@@ -114,6 +116,7 @@ export type EsportsRegistration = {
     name: string;
     branch: string;
     semester: string;
+    gameId: string;
     collegeName: string;
   }>;
   paymentStatus: string;
