@@ -492,15 +492,14 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		HasSubstitute        bool   `json:"hasSubstitute"`
 		SubstitutePlayer     struct {
 			Name           string `json:"name"`
-			Branch         string `json:"branch"`
 			GameID         string `json:"gameId"`
 			WhatsAppNumber string `json:"whatsappNumber"`
 		} `json:"substitutePlayer"`
 		Members []struct {
-			Name        string `json:"name"`
-			Branch      string `json:"branch"`
-			GameID      string `json:"gameId"`
-			CollegeName string `json:"collegeName"`
+			Name           string `json:"name"`
+			WhatsAppNumber string `json:"whatsappNumber"`
+			GameID         string `json:"gameId"`
+			CollegeName    string `json:"collegeName"`
 		} `json:"members"`
 		RazorpayOrderID   string `json:"razorpayOrderId"`
 		RazorpayPaymentID string `json:"razorpayPaymentId"`
@@ -530,13 +529,13 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		return
 	}
 	for _, member := range req.Members {
-		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.GameID) == "" {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.WhatsAppNumber) == "" || strings.TrimSpace(member.GameID) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
 			return
 		}
 	}
 	if req.HasSubstitute {
-		if strings.TrimSpace(req.SubstitutePlayer.Name) == "" || strings.TrimSpace(req.SubstitutePlayer.Branch) == "" || strings.TrimSpace(req.SubstitutePlayer.GameID) == "" || strings.TrimSpace(req.SubstitutePlayer.WhatsAppNumber) == "" {
+		if strings.TrimSpace(req.SubstitutePlayer.Name) == "" || strings.TrimSpace(req.SubstitutePlayer.GameID) == "" || strings.TrimSpace(req.SubstitutePlayer.WhatsAppNumber) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "all substitute player fields are required"})
 			return
 		}
@@ -1314,16 +1313,16 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 			HasSubstitute        bool   `bson:"hasSubstitute"`
 			SubstitutePlayer     struct {
 				Name           string `bson:"name"`
-				Branch         string `bson:"branch"`
 				GameID         string `bson:"gameId"`
 				WhatsAppNumber string `bson:"whatsappNumber"`
 			} `bson:"substitutePlayer"`
 			MemberCount int `bson:"memberCount"`
 			Members     []struct {
-				Name        string `bson:"name"`
-				Branch      string `bson:"branch"`
-				GameID      string `bson:"gameId"`
-				CollegeName string `bson:"collegeName"`
+				Name           string `bson:"name"`
+				WhatsAppNumber string `bson:"whatsappNumber"`
+				Branch         string `bson:"branch"`
+				GameID         string `bson:"gameId"`
+				CollegeName    string `bson:"collegeName"`
 			} `bson:"members"`
 			Payment struct {
 				Status            string `bson:"status"`
@@ -1335,10 +1334,10 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 			members := make([]models.EsportsMember, 0, len(reg.Members))
 			for _, m := range reg.Members {
 				members = append(members, models.EsportsMember{
-					Name:        m.Name,
-					Branch:      m.Branch,
-					GameID:      m.GameID,
-					CollegeName: m.CollegeName,
+					Name:           m.Name,
+					WhatsAppNumber: firstNonEmpty(strings.TrimSpace(m.WhatsAppNumber), strings.TrimSpace(m.Branch)),
+					GameID:         m.GameID,
+					CollegeName:    m.CollegeName,
 				})
 			}
 			items = append(items, models.EsportsRegistration{
@@ -1353,7 +1352,6 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 				HasSubstitute:        reg.HasSubstitute,
 				SubstitutePlayer: models.EsportsSubstitute{
 					Name:           reg.SubstitutePlayer.Name,
-					Branch:         reg.SubstitutePlayer.Branch,
 					GameID:         reg.SubstitutePlayer.GameID,
 					WhatsAppNumber: reg.SubstitutePlayer.WhatsAppNumber,
 				},
@@ -1784,6 +1782,16 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
 }
 
 func generateTeamCode(seed string) string {

@@ -114,15 +114,14 @@ type HackathonMember struct {
 }
 
 type EsportsMember struct {
-	Name        string `json:"name"`
-	Branch      string `json:"branch"`
-	GameID      string `json:"gameId"`
-	CollegeName string `json:"collegeName"`
+	Name           string `json:"name"`
+	WhatsAppNumber string `json:"whatsappNumber"`
+	GameID         string `json:"gameId"`
+	CollegeName    string `json:"collegeName"`
 }
 
 type EsportsSubstitute struct {
 	Name           string `json:"name"`
-	Branch         string `json:"branch"`
 	GameID         string `json:"gameId"`
 	WhatsAppNumber string `json:"whatsappNumber"`
 }

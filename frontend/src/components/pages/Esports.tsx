@@ -7,17 +7,16 @@ type RegisterResponse = { message: string };
 
 type EsportsMember = {
   name: string;
-  branch: string;
+  whatsappNumber: string;
   gameId: string;
 };
 
 function createMembers(count: number): EsportsMember[] {
-  return Array.from({ length: count }, () => ({ name: '', branch: '', gameId: '' }));
+  return Array.from({ length: count }, () => ({ name: '', whatsappNumber: '', gameId: '' }));
 }
 
 type SubstitutePlayer = {
   name: string;
-  branch: string;
   gameId: string;
   whatsappNumber: string;
 };
@@ -35,7 +34,6 @@ export default function Esports() {
   const [hasSubstitute, setHasSubstitute] = useState<'yes' | 'no'>('no');
   const [substitute, setSubstitute] = useState<SubstitutePlayer>({
     name: '',
-    branch: '',
     gameId: '',
     whatsappNumber: ''
   });
@@ -124,7 +122,7 @@ export default function Esports() {
               <h4>Player {index + 1}</h4>
               <div className="form-grid">
                 <input placeholder="Name" value={member.name} onChange={e => updateMember(index, 'name', e.target.value)} required />
-                <input placeholder="Branch" value={member.branch} onChange={e => updateMember(index, 'branch', e.target.value)} required />
+                <input placeholder="WhatsApp number" value={member.whatsappNumber} onChange={e => updateMember(index, 'whatsappNumber', e.target.value)} required />
                 <input placeholder="Game ID" value={member.gameId} onChange={e => updateMember(index, 'gameId', e.target.value)} required />
               </div>
             </div>
@@ -139,7 +137,6 @@ export default function Esports() {
               <h4>Substitute Player Details</h4>
               <div className="form-grid">
                 <input placeholder="Substitute name" value={substitute.name} onChange={e => setSubstitute({ ...substitute, name: e.target.value })} required />
-                <input placeholder="Substitute branch" value={substitute.branch} onChange={e => setSubstitute({ ...substitute, branch: e.target.value })} required />
                 <input placeholder="Substitute Game ID" value={substitute.gameId} onChange={e => setSubstitute({ ...substitute, gameId: e.target.value })} required />
                 <input placeholder="Substitute WhatsApp number" value={substitute.whatsappNumber} onChange={e => setSubstitute({ ...substitute, whatsappNumber: e.target.value })} required />
               </div>

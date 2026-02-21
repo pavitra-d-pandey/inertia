@@ -113,14 +113,13 @@ export type EsportsRegistration = {
   hasSubstitute: boolean;
   substitutePlayer?: {
     name: string;
-    branch: string;
     gameId: string;
     whatsappNumber: string;
   };
   memberCount: number;
   members: Array<{
     name: string;
-    branch: string;
+    whatsappNumber: string;
     gameId: string;
     collegeName: string;
   }>;
