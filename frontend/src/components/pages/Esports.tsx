@@ -97,6 +97,35 @@ export default function Esports() {
         <div className="prize-pool-value">INR 11,000</div>
       </div>
       <p className="section-subtitle">Select game first: Valorant (5 players, INR 300 per team) or BGMI (4 players, INR 200 per team).</p>
+      <div className="card" style={{ marginTop: '20px' }}>
+        <h4>Core Tournament Rules & Requirements</h4>
+        <ul>
+          <li>Team composition: 5 main players and up to 2 substitutes.</li>
+          <li>No account recruitment is allowed.</li>
+          <li>Device restriction (BGMI): only mobile/tablet devices are allowed. Emulator usage leads to ban/disqualification.</li>
+          <li>Account requirements (BGMI): minimum tier and level may be required (for example Gold V and Level 15+).</li>
+          <li>Game mode (BGMI): Classic mode (Squad).</li>
+          <li>BGMI map pool: Erangel, Miramar, and Rondo.</li>
+          <li>Valorant map order: Ascent, Split, Haven (Finale).</li>
+          <li>Points system (BGMI): based on placement and kills. Tiebreakers prioritize total kills, then Chicken Dinner count.</li>
+          <li>Winning qualifies the team for the next round.</li>
+          <li>No toxic behavior, toxic chat/voice chat, griefing, or team killing will be tolerated.</li>
+        </ul>
+
+        <h4 style={{ marginTop: '16px' }}>Match Procedures</h4>
+        <ul>
+          <li>Check-in: teams must join the custom room/party 10-15 minutes before match start.</li>
+          <li>Recording/proof: players may be required to record POV/screen and submit it if requested.</li>
+          <li>Technical issues: players are responsible for their own internet connectivity.</li>
+        </ul>
+
+        <h4 style={{ marginTop: '16px' }}>Violations & Penalties</h4>
+        <ul>
+          <li>Cheating (ESP, aimbot, hacks): permanent ban and disqualification.</li>
+          <li>Intentional exploitation of bugs/glitches is prohibited.</li>
+          <li>Offensive team names or player names are not allowed.</li>
+        </ul>
+      </div>
 
       <div className="card" style={{ marginTop: '24px' }}>
         <h4>eSports Registration</h4>
