@@ -21,7 +21,7 @@ export default function Footer() {
         </div>
       </div>
       <div className="footer-bottom">
-        <p>© 2026 Inertia. All rights reserved.</p>
+        <p>Made with ❤️ by Pavitra Durgesh Pandey</p>
       </div>
     </footer>
   );
