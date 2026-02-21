@@ -604,12 +604,13 @@ func (h *Handler) registerContact(c *gin.Context) {
 	var req struct {
 		Email string `json:"email"`
 		Phone string `json:"phone"`
+		Issue string `json:"issue"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Phone) == "" {
+	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Phone) == "" || strings.TrimSpace(req.Issue) == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -627,6 +628,7 @@ func (h *Handler) registerContact(c *gin.Context) {
 		"id":        id,
 		"email":     strings.TrimSpace(req.Email),
 		"phone":     strings.TrimSpace(req.Phone),
+		"issue":     strings.TrimSpace(req.Issue),
 		"createdAt": time.Now(),
 	})
 	if err != nil {
@@ -1432,6 +1434,7 @@ func (h *Handler) getContactRegistrations(c *gin.Context) {
 			ID        int64     `bson:"id"`
 			Email     string    `bson:"email"`
 			Phone     string    `bson:"phone"`
+			Issue     string    `bson:"issue"`
 			CreatedAt time.Time `bson:"createdAt"`
 		}
 		if err := cursor.Decode(&reg); err == nil {
@@ -1439,6 +1442,7 @@ func (h *Handler) getContactRegistrations(c *gin.Context) {
 				ID:        reg.ID,
 				Email:     reg.Email,
 				Phone:     reg.Phone,
+				Issue:     reg.Issue,
 				CreatedAt: reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}

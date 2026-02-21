@@ -6,7 +6,8 @@ type ContactResponse = { message: string };
 export default function Contact() {
   const [form, setForm] = useState({
     email: '',
-    phone: ''
+    phone: '',
+    issue: ''
   });
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState('');
@@ -21,7 +22,7 @@ export default function Contact() {
         body: JSON.stringify(form)
       });
       setResult(res.message);
-      setForm({ email: '', phone: '' });
+      setForm({ email: '', phone: '', issue: '' });
     } catch (err) {
       setResult(err instanceof Error ? err.message : 'Unable to submit contact');
     } finally {
@@ -32,7 +33,7 @@ export default function Contact() {
   return (
     <section className="section">
       <h2 className="section-title">Contact</h2>
-      <p className="section-subtitle">Share your email and phone number. Our team will reach out to you.</p>
+      <p className="section-subtitle">Share your email, phone number, and issue. Our team will reach out to you.</p>
 
       <div className="card" style={{ marginTop: '24px', maxWidth: '640px' }}>
         <h4>Contact Form</h4>
@@ -48,6 +49,13 @@ export default function Contact() {
             placeholder="Phone number"
             value={form.phone}
             onChange={e => setForm({ ...form, phone: e.target.value })}
+            required
+          />
+          <textarea
+            placeholder="Type your issue"
+            value={form.issue}
+            onChange={e => setForm({ ...form, issue: e.target.value })}
+            rows={5}
             required
           />
           <button className="btn btn-primary" type="submit" disabled={submitting}>

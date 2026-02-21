@@ -161,5 +161,6 @@ type ContactSubmission struct {
 	ID        int64  `json:"id"`
 	Email     string `json:"email"`
 	Phone     string `json:"phone"`
+	Issue     string `json:"issue"`
 	CreatedAt string `json:"createdAt"`
 }

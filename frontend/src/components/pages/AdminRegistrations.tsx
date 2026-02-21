@@ -286,19 +286,21 @@ export default function AdminRegistrations() {
               <tr>
                 <th>Email</th>
                 <th>Phone</th>
+                <th>Issue</th>
                 <th>Created</th>
               </tr>
             </thead>
             <tbody>
               {contacts.length === 0 ? (
                 <tr>
-                  <td colSpan={3}>No contact submissions yet.</td>
+                  <td colSpan={4}>No contact submissions yet.</td>
                 </tr>
               ) : (
                 contacts.map(item => (
                   <tr key={item.id}>
                     <td>{item.email}</td>
                     <td>{item.phone}</td>
+                    <td style={{ whiteSpace: 'pre-wrap', minWidth: '280px' }}>{item.issue}</td>
                     <td>{item.createdAt}</td>
                   </tr>
                 ))
