@@ -140,3 +140,10 @@ export type OpenMicRegistration = {
   scriptPdfUrl: string;
   createdAt: string;
 };
+
+export type ContactSubmission = {
+  id: number;
+  email: string;
+  phone: string;
+  createdAt: string;
+};

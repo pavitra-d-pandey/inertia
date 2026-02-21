@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchJson } from '../../lib/api';
 import { getSecretAdminToken, isSecretAdminUnlocked, unlockSecretAdmin } from '../../lib/adminAuth';
-import { EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRegistration, WorkshopRegistration } from '../../lib/types';
+import { ContactSubmission, EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRegistration, WorkshopRegistration } from '../../lib/types';
 
 function formatMembersForHackathon(item: HackathonRegistration) {
   return item.members
@@ -26,6 +26,7 @@ export default function AdminRegistrations() {
   const [roboRace, setRoboRace] = useState<RoboRegistration[]>([]);
   const [esports, setEsports] = useState<EsportsRegistration[]>([]);
   const [openMic, setOpenMic] = useState<OpenMicRegistration[]>([]);
+  const [contacts, setContacts] = useState<ContactSubmission[]>([]);
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -52,6 +53,10 @@ export default function AdminRegistrations() {
     fetchJson<OpenMicRegistration[]>('/api/admin/registrations/open-mic', { headers })
       .then(data => setOpenMic(Array.isArray(data) ? data : []))
       .catch(() => setOpenMic([]));
+
+    fetchJson<ContactSubmission[]>('/api/admin/registrations/contact', { headers })
+      .then(data => setContacts(Array.isArray(data) ? data : []))
+      .catch(() => setContacts([]));
   }, [isUnlocked]);
 
   const handleUnlock = (e: React.FormEvent) => {
@@ -264,6 +269,36 @@ export default function AdminRegistrations() {
                       <strong>{item.paymentStatus || 'unknown'}</strong>
                       <p>{item.paymentId || '-'}</p>
                     </td>
+                    <td>{item.createdAt}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '22px' }}>
+        <h4>Contact Submissions</h4>
+        <div className="table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contacts.length === 0 ? (
+                <tr>
+                  <td colSpan={3}>No contact submissions yet.</td>
+                </tr>
+              ) : (
+                contacts.map(item => (
+                  <tr key={item.id}>
+                    <td>{item.email}</td>
+                    <td>{item.phone}</td>
                     <td>{item.createdAt}</td>
                   </tr>
                 ))

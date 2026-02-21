@@ -46,6 +46,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		api.GET("/workshops", h.getWorkshops)
 		api.GET("/team", h.getTeam)
 		api.GET("/culture/events", h.getCulturalEvents)
+		api.POST("/contact", h.registerContact)
 
 		api.POST("/workshops/register", h.registerWorkshop)
 		api.POST("/robo-race/register", h.registerKineticShowdown)
@@ -77,6 +78,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.GET("/registrations/hackathon", h.getHackathonRegistrations)
 		admin.GET("/registrations/esports", h.getEsportsRegistrations)
 		admin.GET("/registrations/open-mic", h.getOpenMicRegistrations)
+		admin.GET("/registrations/contact", h.getContactRegistrations)
 	}
 }
 
@@ -596,6 +598,43 @@ func (h *Handler) registerOpenMic(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Open Mic registration saved"})
+}
+
+func (h *Handler) registerContact(c *gin.Context) {
+	var req struct {
+		Email string `json:"email"`
+		Phone string `json:"phone"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Phone) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	id, err := h.nextID(ctx, "contact_submissions")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save failed"})
+		return
+	}
+
+	_, err = h.DB.Collection("contact_submissions").InsertOne(ctx, bson.M{
+		"id":        id,
+		"email":     strings.TrimSpace(req.Email),
+		"phone":     strings.TrimSpace(req.Phone),
+		"createdAt": time.Now(),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "save failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Contact submitted successfully"})
 }
 
 func (h *Handler) createRazorpayOrder(c *gin.Context) {
@@ -1370,6 +1409,37 @@ func (h *Handler) getOpenMicRegistrations(c *gin.Context) {
 				PerformanceType:  reg.PerformanceType,
 				ScriptPDFURL:     reg.ScriptPDFURL,
 				CreatedAt:        reg.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) getContactRegistrations(c *gin.Context) {
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("contact_submissions").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	if err != nil {
+		c.JSON(http.StatusOK, []models.ContactSubmission{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var items []models.ContactSubmission
+	for cursor.Next(ctx) {
+		var reg struct {
+			ID        int64     `bson:"id"`
+			Email     string    `bson:"email"`
+			Phone     string    `bson:"phone"`
+			CreatedAt time.Time `bson:"createdAt"`
+		}
+		if err := cursor.Decode(&reg); err == nil {
+			items = append(items, models.ContactSubmission{
+				ID:        reg.ID,
+				Email:     reg.Email,
+				Phone:     reg.Phone,
+				CreatedAt: reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}

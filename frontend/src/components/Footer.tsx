@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom';
+
 export default function Footer() {
   return (
     <footer className="site-footer">
@@ -11,8 +13,7 @@ export default function Footer() {
         <div>
           <p className="footer-title">Contact</p>
           <p className="footer-text">Jabalpur Engineering College, Jabalpur</p>
-          <p className="footer-text">Email: team@inertia.jec</p>
-          <p className="footer-text">Visit the Contact page for more info.</p>
+          <Link className="btn btn-ghost" to="/contact">Contact Page</Link>
         </div>
         <div>
           <p className="footer-title">Events</p>

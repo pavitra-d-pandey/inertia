@@ -156,3 +156,10 @@ type OpenMicRegistration struct {
 	ScriptPDFURL     string `json:"scriptPdfUrl"`
 	CreatedAt        string `json:"createdAt"`
 }
+
+type ContactSubmission struct {
+	ID        int64  `json:"id"`
+	Email     string `json:"email"`
+	Phone     string `json:"phone"`
+	CreatedAt string `json:"createdAt"`
+}
