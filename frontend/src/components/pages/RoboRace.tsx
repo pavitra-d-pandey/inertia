@@ -108,7 +108,7 @@ export default function RoboRace() {
   return (
     <section className="section">
       <h2 className="section-title">Kinetic Showdown</h2>
-      <p className="section-subtitle">Team entry: INR 300 per team. Choose 2 to 4 members and complete payment.</p>
+      <p className="section-subtitle">Prize Pool: INR 12,000. Team entry: INR 300 per team. Choose 2 to 4 members and complete payment.</p>
 
       <div className="banner">
         <h4 style={{ marginTop: 0 }}>RC Car Competition - Information Brochure</h4>
@@ -154,7 +154,7 @@ export default function RoboRace() {
             required
           />
           <input
-            placeholder="Phone"
+            placeholder="WhatsApp number"
             value={form.phone}
             onChange={e => setForm({ ...form, phone: e.target.value })}
             required
@@ -192,7 +192,7 @@ export default function RoboRace() {
                   required
                 />
                 <input
-                  placeholder="Student phone"
+                  placeholder="Student WhatsApp number"
                   value={member.phone}
                   onChange={e => updateMember(index, 'phone', e.target.value)}
                   required

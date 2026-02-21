@@ -105,17 +105,22 @@ export type EsportsRegistration = {
   id: number;
   teamName: string;
   game: string;
-  gameId: string;
   isCollegeParticipant: boolean;
   collegeName: string;
   teamLeaderName: string;
   teamLeaderEmail: string;
   teamLeaderPhone: string;
+  hasSubstitute: boolean;
+  substitutePlayer?: {
+    name: string;
+    branch: string;
+    gameId: string;
+    whatsappNumber: string;
+  };
   memberCount: number;
   members: Array<{
     name: string;
     branch: string;
-    semester: string;
     gameId: string;
     collegeName: string;
   }>;

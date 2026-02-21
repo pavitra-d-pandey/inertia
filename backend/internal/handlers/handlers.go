@@ -484,16 +484,21 @@ func (h *Handler) registerEsports(c *gin.Context) {
 	var req struct {
 		TeamName             string `json:"teamName"`
 		Game                 string `json:"game"`
-		GameID               string `json:"gameId"`
 		IsCollegeParticipant bool   `json:"isCollegeParticipant"`
 		CollegeName          string `json:"collegeName"`
 		TeamLeaderName       string `json:"teamLeaderName"`
 		TeamLeaderEmail      string `json:"teamLeaderEmail"`
 		TeamLeaderPhone      string `json:"teamLeaderPhone"`
-		Members              []struct {
+		HasSubstitute        bool   `json:"hasSubstitute"`
+		SubstitutePlayer     struct {
+			Name           string `json:"name"`
+			Branch         string `json:"branch"`
+			GameID         string `json:"gameId"`
+			WhatsAppNumber string `json:"whatsappNumber"`
+		} `json:"substitutePlayer"`
+		Members []struct {
 			Name        string `json:"name"`
 			Branch      string `json:"branch"`
-			Semester    string `json:"semester"`
 			GameID      string `json:"gameId"`
 			CollegeName string `json:"collegeName"`
 		} `json:"members"`
@@ -508,7 +513,7 @@ func (h *Handler) registerEsports(c *gin.Context) {
 
 	game := strings.ToLower(strings.TrimSpace(req.Game))
 	memberCount := len(req.Members)
-	if req.TeamName == "" || req.GameID == "" || req.TeamLeaderName == "" || req.TeamLeaderEmail == "" || req.TeamLeaderPhone == "" {
+	if req.TeamName == "" || req.TeamLeaderName == "" || req.TeamLeaderEmail == "" || req.TeamLeaderPhone == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -525,8 +530,14 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		return
 	}
 	for _, member := range req.Members {
-		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.Semester) == "" || strings.TrimSpace(member.GameID) == "" {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.GameID) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
+			return
+		}
+	}
+	if req.HasSubstitute {
+		if strings.TrimSpace(req.SubstitutePlayer.Name) == "" || strings.TrimSpace(req.SubstitutePlayer.Branch) == "" || strings.TrimSpace(req.SubstitutePlayer.GameID) == "" || strings.TrimSpace(req.SubstitutePlayer.WhatsAppNumber) == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "all substitute player fields are required"})
 			return
 		}
 	}
@@ -547,12 +558,13 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		"id":                   id,
 		"teamName":             req.TeamName,
 		"game":                 game,
-		"gameId":               req.GameID,
 		"isCollegeParticipant": req.IsCollegeParticipant,
 		"collegeName":          req.CollegeName,
 		"teamLeaderName":       req.TeamLeaderName,
 		"teamLeaderEmail":      req.TeamLeaderEmail,
 		"teamLeaderPhone":      req.TeamLeaderPhone,
+		"hasSubstitute":        req.HasSubstitute,
+		"substitutePlayer":     req.SubstitutePlayer,
 		"memberCount":          memberCount,
 		"members":              req.Members,
 		"payment": bson.M{
@@ -1294,17 +1306,22 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 			ID                   int64  `bson:"id"`
 			TeamName             string `bson:"teamName"`
 			Game                 string `bson:"game"`
-			GameID               string `bson:"gameId"`
 			IsCollegeParticipant bool   `bson:"isCollegeParticipant"`
 			CollegeName          string `bson:"collegeName"`
 			TeamLeaderName       string `bson:"teamLeaderName"`
 			TeamLeaderEmail      string `bson:"teamLeaderEmail"`
 			TeamLeaderPhone      string `bson:"teamLeaderPhone"`
-			MemberCount          int    `bson:"memberCount"`
-			Members              []struct {
+			HasSubstitute        bool   `bson:"hasSubstitute"`
+			SubstitutePlayer     struct {
+				Name           string `bson:"name"`
+				Branch         string `bson:"branch"`
+				GameID         string `bson:"gameId"`
+				WhatsAppNumber string `bson:"whatsappNumber"`
+			} `bson:"substitutePlayer"`
+			MemberCount int `bson:"memberCount"`
+			Members     []struct {
 				Name        string `bson:"name"`
 				Branch      string `bson:"branch"`
-				Semester    string `bson:"semester"`
 				GameID      string `bson:"gameId"`
 				CollegeName string `bson:"collegeName"`
 			} `bson:"members"`
@@ -1320,7 +1337,6 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 				members = append(members, models.EsportsMember{
 					Name:        m.Name,
 					Branch:      m.Branch,
-					Semester:    m.Semester,
 					GameID:      m.GameID,
 					CollegeName: m.CollegeName,
 				})
@@ -1329,17 +1345,23 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 				ID:                   reg.ID,
 				TeamName:             reg.TeamName,
 				Game:                 reg.Game,
-				GameID:               reg.GameID,
 				IsCollegeParticipant: reg.IsCollegeParticipant,
 				CollegeName:          reg.CollegeName,
 				TeamLeaderName:       reg.TeamLeaderName,
 				TeamLeaderEmail:      reg.TeamLeaderEmail,
 				TeamLeaderPhone:      reg.TeamLeaderPhone,
-				MemberCount:          maxInt(reg.MemberCount, len(members)),
-				Members:              members,
-				PaymentStatus:        reg.Payment.Status,
-				PaymentID:            reg.Payment.RazorpayPaymentID,
-				CreatedAt:            reg.CreatedAt.Format("2006-01-02 15:04:05"),
+				HasSubstitute:        reg.HasSubstitute,
+				SubstitutePlayer: models.EsportsSubstitute{
+					Name:           reg.SubstitutePlayer.Name,
+					Branch:         reg.SubstitutePlayer.Branch,
+					GameID:         reg.SubstitutePlayer.GameID,
+					WhatsAppNumber: reg.SubstitutePlayer.WhatsAppNumber,
+				},
+				MemberCount:   maxInt(reg.MemberCount, len(members)),
+				Members:       members,
+				PaymentStatus: reg.Payment.Status,
+				PaymentID:     reg.Payment.RazorpayPaymentID,
+				CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}

@@ -8,13 +8,19 @@ type RegisterResponse = { message: string };
 type EsportsMember = {
   name: string;
   branch: string;
-  semester: string;
   gameId: string;
 };
 
 function createMembers(count: number): EsportsMember[] {
-  return Array.from({ length: count }, () => ({ name: '', branch: '', semester: '', gameId: '' }));
+  return Array.from({ length: count }, () => ({ name: '', branch: '', gameId: '' }));
 }
+
+type SubstitutePlayer = {
+  name: string;
+  branch: string;
+  gameId: string;
+  whatsappNumber: string;
+};
 
 export default function Esports() {
   const [game, setGame] = useState<'valorant' | 'bgmi'>('valorant');
@@ -22,10 +28,16 @@ export default function Esports() {
     teamName: '',
     isCollegeParticipant: 'yes' as 'yes' | 'no',
     collegeName: '',
-    gameId: '',
     teamLeaderName: '',
     teamLeaderEmail: '',
     teamLeaderPhone: ''
+  });
+  const [hasSubstitute, setHasSubstitute] = useState<'yes' | 'no'>('no');
+  const [substitute, setSubstitute] = useState<SubstitutePlayer>({
+    name: '',
+    branch: '',
+    gameId: '',
+    whatsappNumber: ''
   });
   const [members, setMembers] = useState<EsportsMember[]>(createMembers(5));
   const [submitting, setSubmitting] = useState(false);
@@ -65,6 +77,8 @@ export default function Esports() {
           collegeName: form.isCollegeParticipant === 'yes' ? form.collegeName.trim() : '',
           game,
           members: payloadMembers,
+          hasSubstitute: hasSubstitute === 'yes',
+          ...(hasSubstitute === 'yes' ? { substitutePlayer: substitute } : {}),
           ...payment
         })
       });
@@ -80,7 +94,7 @@ export default function Esports() {
   return (
     <section className="section">
       <h2 className="section-title">eSports</h2>
-      <p className="section-subtitle">Select game first: Valorant (5 players, INR 300 per team) or BGMI (4 players, INR 200 per team).</p>
+      <p className="section-subtitle">Prize Pool: INR 11,000. Select game first: Valorant (5 players, INR 300 per team) or BGMI (4 players, INR 200 per team).</p>
 
       <div className="card" style={{ marginTop: '24px' }}>
         <h4>eSports Registration</h4>
@@ -97,10 +111,9 @@ export default function Esports() {
           {form.isCollegeParticipant === 'yes' && (
             <input placeholder="College name" value={form.collegeName} onChange={e => setForm({ ...form, collegeName: e.target.value })} required />
           )}
-          <input placeholder="Team game ID" value={form.gameId} onChange={e => setForm({ ...form, gameId: e.target.value })} required />
           <input placeholder="Team leader name" value={form.teamLeaderName} onChange={e => setForm({ ...form, teamLeaderName: e.target.value })} required />
           <input placeholder="Team leader email" type="email" value={form.teamLeaderEmail} onChange={e => setForm({ ...form, teamLeaderEmail: e.target.value })} required />
-          <input placeholder="Team leader phone" value={form.teamLeaderPhone} onChange={e => setForm({ ...form, teamLeaderPhone: e.target.value })} required />
+          <input placeholder="Team leader WhatsApp number" value={form.teamLeaderPhone} onChange={e => setForm({ ...form, teamLeaderPhone: e.target.value })} required />
 
           {members.map((member, index) => (
             <div className="card" key={index}>
@@ -108,11 +121,26 @@ export default function Esports() {
               <div className="form-grid">
                 <input placeholder="Name" value={member.name} onChange={e => updateMember(index, 'name', e.target.value)} required />
                 <input placeholder="Branch" value={member.branch} onChange={e => updateMember(index, 'branch', e.target.value)} required />
-                <input placeholder="Semester / Year" value={member.semester} onChange={e => updateMember(index, 'semester', e.target.value)} required />
                 <input placeholder="Game ID" value={member.gameId} onChange={e => updateMember(index, 'gameId', e.target.value)} required />
               </div>
             </div>
           ))}
+
+          <select value={hasSubstitute} onChange={e => setHasSubstitute(e.target.value as 'yes' | 'no')}>
+            <option value="no">Need substitute player? No</option>
+            <option value="yes">Need substitute player? Yes</option>
+          </select>
+          {hasSubstitute === 'yes' && (
+            <div className="card">
+              <h4>Substitute Player Details</h4>
+              <div className="form-grid">
+                <input placeholder="Substitute name" value={substitute.name} onChange={e => setSubstitute({ ...substitute, name: e.target.value })} required />
+                <input placeholder="Substitute branch" value={substitute.branch} onChange={e => setSubstitute({ ...substitute, branch: e.target.value })} required />
+                <input placeholder="Substitute Game ID" value={substitute.gameId} onChange={e => setSubstitute({ ...substitute, gameId: e.target.value })} required />
+                <input placeholder="Substitute WhatsApp number" value={substitute.whatsappNumber} onChange={e => setSubstitute({ ...substitute, whatsappNumber: e.target.value })} required />
+              </div>
+            </div>
+          )}
 
           <button className="btn btn-primary" type="submit" disabled={submitting}>
             {submitting ? 'Processing Payment...' : `Pay ${feeLabel} & Register`}

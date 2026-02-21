@@ -251,8 +251,11 @@ export default function AdminRegistrations() {
                     <td>
                       <strong>{item.teamName}</strong>
                       <p>Game: {item.game}</p>
-                      <p>Team Game ID: {item.gameId || '-'}</p>
                       <p>{item.isCollegeParticipant ? `College: ${item.collegeName || '-'}` : 'Not a college team'}</p>
+                      <p>Substitute: {item.hasSubstitute ? 'Yes' : 'No'}</p>
+                      {item.hasSubstitute && (
+                        <p>{`${item.substitutePlayer?.name || '-'} | ${item.substitutePlayer?.branch || '-'} | ${item.substitutePlayer?.gameId || '-'} | ${item.substitutePlayer?.whatsappNumber || '-'}`}</p>
+                      )}
                     </td>
                     <td>
                       <strong>{item.teamLeaderName}</strong>
@@ -260,7 +263,7 @@ export default function AdminRegistrations() {
                       <p>{item.teamLeaderPhone}</p>
                     </td>
                     <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>
-                      {item.members.map((member, index) => `${index + 1}. ${member.name} | ${member.branch} | ${member.semester} | ${member.gameId || '-'} | ${member.collegeName || '-'}`).join('\n')}
+                      {item.members.map((member, index) => `${index + 1}. ${member.name} | ${member.branch} | ${member.gameId || '-'} | ${member.collegeName || '-'}`).join('\n')}
                     </td>
                     <td>
                       <strong>{item.paymentStatus || 'unknown'}</strong>

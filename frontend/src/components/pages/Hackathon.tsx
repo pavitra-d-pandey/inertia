@@ -82,7 +82,7 @@ export default function Hackathon() {
     <section className="section">
       <h2 className="section-title">CodeHunt Hackathon</h2>
       <p className="section-subtitle">
-        12-hour hackathon with internship interview opportunities, product building, and live stage presentations.
+        Prize Pool: INR 12,000. 12-hour hackathon with internship interview opportunities, product building, and live stage presentations.
       </p>
 
       <div className="cards-grid" style={{ marginTop: '24px' }}>
@@ -131,7 +131,7 @@ export default function Hackathon() {
             required
           />
           <input
-            placeholder="Leader phone"
+            placeholder="Leader WhatsApp number"
             value={form.contactPhone}
             onChange={e => setForm({ ...form, contactPhone: e.target.value })}
             required
@@ -161,7 +161,7 @@ export default function Hackathon() {
                   required
                 />
                 <input
-                  placeholder="Member phone"
+                  placeholder="Member WhatsApp number"
                   value={member.phone}
                   onChange={e => updateMember(index, 'phone', e.target.value)}
                   required

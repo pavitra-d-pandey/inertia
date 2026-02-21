@@ -100,7 +100,7 @@ export default function Workshops() {
             required
           />
           <input
-            placeholder="Phone"
+            placeholder="WhatsApp number"
             value={form.phone}
             onChange={e => setForm({ ...form, phone: e.target.value })}
             required
