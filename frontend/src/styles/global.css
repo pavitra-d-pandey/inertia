@@ -50,13 +50,14 @@ main {
 .app-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh;
   position: relative;
 }
 
 .app-content {
   position: relative;
   z-index: 2;
+  flex: 1;
 }
 
 .ambient-bg {
@@ -651,14 +652,12 @@ textarea:focus {
 }
 
 .sponsor-row img {
-  width: auto;
-  max-width: min(100%, 320px);
-  height: auto;
-  max-height: 120px;
+  width: min(100%, 320px);
+  height: 110px;
   object-fit: contain;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
-  padding: 12px;
+  padding: 12px 16px;
 }
 
 .sponsor-logo {
