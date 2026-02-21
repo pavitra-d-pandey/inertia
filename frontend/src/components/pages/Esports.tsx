@@ -28,7 +28,6 @@ export default function Esports() {
     isCollegeParticipant: 'yes' as 'yes' | 'no',
     collegeName: '',
     teamLeaderName: '',
-    teamLeaderEmail: '',
     teamLeaderPhone: ''
   });
   const [hasSubstitute, setHasSubstitute] = useState<'yes' | 'no'>('no');
@@ -61,7 +60,7 @@ export default function Esports() {
     try {
       const payment = await collectPayment(
         paymentEvent,
-        { name: form.teamLeaderName, email: form.teamLeaderEmail, contact: form.teamLeaderPhone },
+        { name: form.teamLeaderName, contact: form.teamLeaderPhone },
         `eSports ${game.toUpperCase()}`
       );
 
@@ -143,7 +142,6 @@ export default function Esports() {
             <input placeholder="College name" value={form.collegeName} onChange={e => setForm({ ...form, collegeName: e.target.value })} required />
           )}
           <input placeholder="Team leader name" value={form.teamLeaderName} onChange={e => setForm({ ...form, teamLeaderName: e.target.value })} required />
-          <input placeholder="Team leader email" type="email" value={form.teamLeaderEmail} onChange={e => setForm({ ...form, teamLeaderEmail: e.target.value })} required />
           <input placeholder="Team leader WhatsApp number" value={form.teamLeaderPhone} onChange={e => setForm({ ...form, teamLeaderPhone: e.target.value })} required />
 
           {members.map((member, index) => (

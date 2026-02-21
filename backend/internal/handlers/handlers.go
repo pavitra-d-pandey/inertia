@@ -10,10 +10,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
-	"net/smtp"
 	"net/url"
 	"sort"
 	"strconv"
@@ -73,7 +71,6 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.DELETE("/team/:id", h.deleteTeamMember)
 		admin.PUT("/culture-event/:id", h.updateCulturalEvent)
 		admin.DELETE("/culture-event/:id", h.deleteCulturalEvent)
-		admin.POST("/notifications/broadcast", h.broadcastEmail)
 		admin.GET("/registrations/workshops", h.getWorkshopRegistrations)
 		admin.GET("/registrations/robo-race", h.getRoboRegistrations)
 		admin.GET("/registrations/kinetic-showdown", h.getRoboRegistrations)
@@ -246,7 +243,6 @@ func (h *Handler) getCulturalEvents(c *gin.Context) {
 func (h *Handler) registerWorkshop(c *gin.Context) {
 	var req struct {
 		Name              string `json:"name"`
-		Email             string `json:"email"`
 		Phone             string `json:"phone"`
 		CollegeName       string `json:"collegeName"`
 		WorkshopID        string `json:"workshopId"`
@@ -258,7 +254,7 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.Name == "" || req.Email == "" || req.Phone == "" || req.CollegeName == "" || req.WorkshopID == "" {
+	if req.Name == "" || req.Phone == "" || req.CollegeName == "" || req.WorkshopID == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -286,7 +282,6 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 		"id":          id,
 		"workshopId":  workshopID,
 		"name":        req.Name,
-		"email":       req.Email,
 		"phone":       req.Phone,
 		"collegeName": req.CollegeName,
 		"payment": bson.M{
@@ -300,7 +295,6 @@ func (h *Handler) registerWorkshop(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save"})
 		return
 	}
-	h.sendPaymentSuccessEmail("Workshop", req.Name, req.RazorpayPaymentID, []string{req.Email})
 	c.JSON(http.StatusOK, gin.H{"message": "Workshop registration saved"})
 }
 
@@ -308,13 +302,11 @@ func (h *Handler) registerKineticShowdown(c *gin.Context) {
 	var req struct {
 		TeamName       string `json:"teamName"`
 		TeamLeaderName string `json:"teamLeaderName"`
-		Email          string `json:"email"`
 		Phone          string `json:"phone"`
 		CollegeName    string `json:"collegeName"`
 		MemberCount    int    `json:"memberCount"`
 		Members        []struct {
 			Name        string `json:"name"`
-			Email       string `json:"email"`
 			Phone       string `json:"phone"`
 			Branch      string `json:"branch"`
 			Semester    string `json:"semester"`
@@ -328,7 +320,7 @@ func (h *Handler) registerKineticShowdown(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.TeamName == "" || req.TeamLeaderName == "" || req.Email == "" || req.Phone == "" || req.CollegeName == "" {
+	if req.TeamName == "" || req.TeamLeaderName == "" || req.Phone == "" || req.CollegeName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -341,7 +333,7 @@ func (h *Handler) registerKineticShowdown(c *gin.Context) {
 		return
 	}
 	for _, member := range req.Members {
-		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Email) == "" || strings.TrimSpace(member.Phone) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.Semester) == "" || strings.TrimSpace(member.CollegeName) == "" {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Phone) == "" || strings.TrimSpace(member.Branch) == "" || strings.TrimSpace(member.Semester) == "" || strings.TrimSpace(member.CollegeName) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
 			return
 		}
@@ -364,7 +356,6 @@ func (h *Handler) registerKineticShowdown(c *gin.Context) {
 		"id":             id,
 		"teamName":       req.TeamName,
 		"teamLeaderName": req.TeamLeaderName,
-		"email":          req.Email,
 		"phone":          req.Phone,
 		"collegeName":    req.CollegeName,
 		"memberCount":    req.MemberCount,
@@ -381,13 +372,6 @@ func (h *Handler) registerKineticShowdown(c *gin.Context) {
 		return
 	}
 
-	emailCandidates := []string{req.Email}
-	for _, member := range req.Members {
-		emailCandidates = append(emailCandidates, member.Email)
-	}
-	recipientEmails := collectUniqueNormalizedEmails(emailCandidates)
-	h.sendPaymentSuccessEmail("Kinetic Showdown", req.TeamName, req.RazorpayPaymentID, recipientEmails)
-
 	c.JSON(http.StatusOK, gin.H{"message": "Kinetic showdown registration saved"})
 }
 
@@ -395,12 +379,10 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 	var req struct {
 		TeamName     string `json:"teamName"`
 		ContactName  string `json:"contactName"`
-		ContactEmail string `json:"contactEmail"`
 		ContactPhone string `json:"contactPhone"`
 		CollegeName  string `json:"collegeName"`
 		Members      []struct {
 			Name   string `json:"name"`
-			Email  string `json:"email"`
 			Phone  string `json:"phone"`
 			Gender string `json:"gender"`
 		} `json:"members"`
@@ -412,7 +394,7 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.TeamName == "" || req.ContactName == "" || req.ContactEmail == "" || req.ContactPhone == "" || req.CollegeName == "" {
+	if req.TeamName == "" || req.ContactName == "" || req.ContactPhone == "" || req.CollegeName == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -422,7 +404,7 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 	}
 	femaleCount := 0
 	for _, member := range req.Members {
-		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Email) == "" || strings.TrimSpace(member.Phone) == "" {
+		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Phone) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
 			return
 		}
@@ -452,7 +434,6 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		"id":           id,
 		"teamName":     req.TeamName,
 		"contactName":  req.ContactName,
-		"contactEmail": req.ContactEmail,
 		"contactPhone": req.ContactPhone,
 		"collegeName":  req.CollegeName,
 		"members":      req.Members,
@@ -470,13 +451,6 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		return
 	}
 
-	emailCandidates := []string{req.ContactEmail}
-	for _, member := range req.Members {
-		emailCandidates = append(emailCandidates, member.Email)
-	}
-	recipientEmails := collectUniqueNormalizedEmails(emailCandidates)
-	h.sendPaymentSuccessEmail("Hackathon", req.TeamName, req.RazorpayPaymentID, recipientEmails)
-
 	c.JSON(http.StatusOK, gin.H{"message": "Hackathon registration saved"})
 }
 
@@ -487,7 +461,6 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		IsCollegeParticipant bool   `json:"isCollegeParticipant"`
 		CollegeName          string `json:"collegeName"`
 		TeamLeaderName       string `json:"teamLeaderName"`
-		TeamLeaderEmail      string `json:"teamLeaderEmail"`
 		TeamLeaderPhone      string `json:"teamLeaderPhone"`
 		HasSubstitute        bool   `json:"hasSubstitute"`
 		SubstitutePlayer     struct {
@@ -512,7 +485,7 @@ func (h *Handler) registerEsports(c *gin.Context) {
 
 	game := strings.ToLower(strings.TrimSpace(req.Game))
 	memberCount := len(req.Members)
-	if req.TeamName == "" || req.TeamLeaderName == "" || req.TeamLeaderEmail == "" || req.TeamLeaderPhone == "" {
+	if req.TeamName == "" || req.TeamLeaderName == "" || req.TeamLeaderPhone == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -560,7 +533,6 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		"isCollegeParticipant": req.IsCollegeParticipant,
 		"collegeName":          req.CollegeName,
 		"teamLeaderName":       req.TeamLeaderName,
-		"teamLeaderEmail":      req.TeamLeaderEmail,
 		"teamLeaderPhone":      req.TeamLeaderPhone,
 		"hasSubstitute":        req.HasSubstitute,
 		"substitutePlayer":     req.SubstitutePlayer,
@@ -577,16 +549,12 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
 		return
 	}
-
-	recipientEmails := collectUniqueNormalizedEmails([]string{req.TeamLeaderEmail})
-	h.sendPaymentSuccessEmail("eSports", req.TeamName, req.RazorpayPaymentID, recipientEmails)
 	c.JSON(http.StatusOK, gin.H{"message": "eSports registration saved"})
 }
 
 func (h *Handler) registerOpenMic(c *gin.Context) {
 	var req struct {
 		Name             string `json:"name"`
-		Email            string `json:"email"`
 		Phone            string `json:"phone"`
 		EnrollmentNumber string `json:"enrollmentNumber"`
 		Year             string `json:"year"`
@@ -598,7 +566,7 @@ func (h *Handler) registerOpenMic(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
-	if req.Name == "" || req.Email == "" || req.Phone == "" || req.EnrollmentNumber == "" || req.Year == "" || req.CollegeName == "" || req.PerformanceType == "" {
+	if req.Name == "" || req.Phone == "" || req.EnrollmentNumber == "" || req.Year == "" || req.CollegeName == "" || req.PerformanceType == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
@@ -614,7 +582,6 @@ func (h *Handler) registerOpenMic(c *gin.Context) {
 	_, err = h.DB.Collection("open_mic_registrations").InsertOne(ctx, bson.M{
 		"id":               id,
 		"name":             req.Name,
-		"email":            req.Email,
 		"phone":            req.Phone,
 		"enrollmentNumber": req.EnrollmentNumber,
 		"year":             req.Year,
@@ -1409,222 +1376,6 @@ func (h *Handler) getOpenMicRegistrations(c *gin.Context) {
 	c.JSON(http.StatusOK, items)
 }
 
-func (h *Handler) broadcastEmail(c *gin.Context) {
-	var req struct {
-		Audience string `json:"audience"`
-		Subject  string `json:"subject"`
-		Message  string `json:"message"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
-		return
-	}
-
-	audience := strings.ToLower(strings.TrimSpace(req.Audience))
-	subject := strings.TrimSpace(req.Subject)
-	message := strings.TrimSpace(req.Message)
-	if audience == "" || subject == "" || message == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
-		return
-	}
-
-	ctx, cancel := h.ctx()
-	defer cancel()
-
-	recipients, err := h.collectAudienceEmails(ctx, audience)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not prepare recipients"})
-		return
-	}
-	if len(recipients) == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "no recipients found for selected audience"})
-		return
-	}
-
-	if err := h.sendEmail(subject, message, recipients); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{
-		"message":  "Email sent successfully",
-		"audience": audience,
-		"count":    len(recipients),
-	})
-}
-
-func (h *Handler) collectAudienceEmails(ctx context.Context, audience string) ([]string, error) {
-	switch audience {
-	case "workshops":
-		return h.collectWorkshopEmails(ctx)
-	case "hackathon":
-		return h.collectHackathonEmails(ctx)
-	case "robo-race", "kinetic-showdown":
-		return h.collectRoboRaceEmails(ctx)
-	case "esports":
-		return h.collectEsportsEmails(ctx)
-	case "open-mic":
-		return h.collectOpenMicEmails(ctx)
-	case "all":
-		workshop, err := h.collectWorkshopEmails(ctx)
-		if err != nil {
-			return nil, err
-		}
-		hackathon, err := h.collectHackathonEmails(ctx)
-		if err != nil {
-			return nil, err
-		}
-		robo, err := h.collectRoboRaceEmails(ctx)
-		if err != nil {
-			return nil, err
-		}
-		esports, err := h.collectEsportsEmails(ctx)
-		if err != nil {
-			return nil, err
-		}
-		openMic, err := h.collectOpenMicEmails(ctx)
-		if err != nil {
-			return nil, err
-		}
-		combined := append(append(append(append(workshop, hackathon...), robo...), esports...), openMic...)
-		return collectUniqueNormalizedEmails(combined), nil
-	default:
-		return nil, fmt.Errorf("invalid audience")
-	}
-}
-
-func (h *Handler) collectWorkshopEmails(ctx context.Context) ([]string, error) {
-	cursor, err := h.DB.Collection("workshop_registrations").Find(ctx, bson.D{})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var emails []string
-	for cursor.Next(ctx) {
-		var reg struct {
-			Email string `bson:"email"`
-		}
-		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
-			emails = append(emails, reg.Email)
-		}
-	}
-	return collectUniqueNormalizedEmails(emails), nil
-}
-
-func (h *Handler) collectHackathonEmails(ctx context.Context) ([]string, error) {
-	var emails []string
-
-	cursor, err := h.DB.Collection("hackathon_registrations").Find(ctx, bson.D{})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-	for cursor.Next(ctx) {
-		var reg struct {
-			ContactEmail string `bson:"contactEmail"`
-			Members      []struct {
-				Email string `bson:"email"`
-			} `bson:"members"`
-		}
-		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
-			emails = append(emails, reg.ContactEmail)
-			for _, m := range reg.Members {
-				emails = append(emails, m.Email)
-			}
-		}
-	}
-
-	legacyCursor, legacyErr := h.DB.Collection("hackathon_members").Find(ctx, bson.D{})
-	if legacyErr == nil {
-		defer legacyCursor.Close(ctx)
-		for legacyCursor.Next(ctx) {
-			var reg struct {
-				Email string `bson:"email"`
-			}
-			if decodeErr := legacyCursor.Decode(&reg); decodeErr == nil {
-				emails = append(emails, reg.Email)
-			}
-		}
-	}
-
-	return collectUniqueNormalizedEmails(emails), nil
-}
-
-func (h *Handler) collectRoboRaceEmails(ctx context.Context) ([]string, error) {
-	cursor, err := h.DB.Collection("kinetic_showdown_registrations").Find(ctx, bson.D{})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var emails []string
-	for cursor.Next(ctx) {
-		var reg struct {
-			Email   string `bson:"email"`
-			Members []struct {
-				Email string `bson:"email"`
-			} `bson:"members"`
-		}
-		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
-			emails = append(emails, reg.Email)
-			for _, m := range reg.Members {
-				emails = append(emails, m.Email)
-			}
-		}
-	}
-	legacyCursor, legacyErr := h.DB.Collection("robo_registrations").Find(ctx, bson.D{})
-	if legacyErr == nil {
-		defer legacyCursor.Close(ctx)
-		for legacyCursor.Next(ctx) {
-			var reg struct {
-				Email string `bson:"email"`
-			}
-			if decodeErr := legacyCursor.Decode(&reg); decodeErr == nil {
-				emails = append(emails, reg.Email)
-			}
-		}
-	}
-	return collectUniqueNormalizedEmails(emails), nil
-}
-
-func (h *Handler) collectEsportsEmails(ctx context.Context) ([]string, error) {
-	cursor, err := h.DB.Collection("esports_registrations").Find(ctx, bson.D{})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var emails []string
-	for cursor.Next(ctx) {
-		var reg struct {
-			TeamLeaderEmail string `bson:"teamLeaderEmail"`
-		}
-		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
-			emails = append(emails, reg.TeamLeaderEmail)
-		}
-	}
-	return collectUniqueNormalizedEmails(emails), nil
-}
-
-func (h *Handler) collectOpenMicEmails(ctx context.Context) ([]string, error) {
-	cursor, err := h.DB.Collection("open_mic_registrations").Find(ctx, bson.D{})
-	if err != nil {
-		return nil, err
-	}
-	defer cursor.Close(ctx)
-
-	var emails []string
-	for cursor.Next(ctx) {
-		var reg struct {
-			Email string `bson:"email"`
-		}
-		if decodeErr := cursor.Decode(&reg); decodeErr == nil {
-			emails = append(emails, reg.Email)
-		}
-	}
-	return collectUniqueNormalizedEmails(emails), nil
-}
-
 func verifyRazorpayPayment(orderID, paymentID, signature, keySecret string) bool {
 	orderID = strings.TrimSpace(orderID)
 	paymentID = strings.TrimSpace(paymentID)
@@ -1638,58 +1389,6 @@ func verifyRazorpayPayment(orderID, paymentID, signature, keySecret string) bool
 	h.Write([]byte(payload))
 	expected := hex.EncodeToString(h.Sum(nil))
 	return hmac.Equal([]byte(expected), []byte(signature))
-}
-
-func collectUniqueNormalizedEmails(input []string) []string {
-	seen := map[string]struct{}{}
-	out := make([]string, 0, len(input))
-	for _, email := range input {
-		clean := strings.ToLower(strings.TrimSpace(email))
-		if clean == "" {
-			continue
-		}
-		if _, exists := seen[clean]; exists {
-			continue
-		}
-		seen[clean] = struct{}{}
-		out = append(out, clean)
-	}
-	return out
-}
-
-func (h *Handler) sendPaymentSuccessEmail(eventName, teamName, paymentID string, recipients []string) {
-	subject := fmt.Sprintf("%s Registration Confirmed", eventName)
-	body := fmt.Sprintf(
-		"Your payment and registration are confirmed.\r\n\r\nEvent: %s\r\nTeam: %s\r\nPayment ID: %s\r\n\r\nThank you for registering.",
-		eventName,
-		teamName,
-		paymentID,
-	)
-	if err := h.sendEmail(subject, body, recipients); err != nil {
-		log.Printf("payment success mail failed: %v", err)
-	}
-}
-
-func (h *Handler) sendEmail(subject, body string, recipients []string) error {
-	if len(recipients) == 0 || h.Config.SMTPHost == "" || h.Config.SMTPPort == "" || h.Config.MailFrom == "" {
-		return nil
-	}
-
-	msg := "From: " + h.Config.MailFrom + "\r\n" +
-		"To: " + strings.Join(recipients, ",") + "\r\n" +
-		"Subject: " + subject + "\r\n\r\n" +
-		body + "\r\n"
-
-	addr := h.Config.SMTPHost + ":" + h.Config.SMTPPort
-	var auth smtp.Auth
-	if h.Config.SMTPUser != "" || h.Config.SMTPPass != "" {
-		auth = smtp.PlainAuth("", h.Config.SMTPUser, h.Config.SMTPPass, h.Config.SMTPHost)
-	}
-
-	if err := smtp.SendMail(addr, auth, h.Config.MailFrom, recipients, []byte(msg)); err != nil {
-		return err
-	}
-	return nil
 }
 
 func uploadToCloudinary(file *multipart.FileHeader, cfg config.Config, resourceType string) (string, error) {

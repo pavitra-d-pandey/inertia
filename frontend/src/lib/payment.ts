@@ -39,7 +39,7 @@ function loadRazorpayScript(): Promise<void> {
   });
 }
 
-function openCheckout(order: RazorpayOrderResponse, prefill: { name: string; email: string; contact: string }, eventLabel: string) {
+function openCheckout(order: RazorpayOrderResponse, prefill: { name: string; email?: string; contact: string }, eventLabel: string) {
   return new Promise<RazorpayPaymentResponse>((resolve, reject) => {
     if (!window.Razorpay) {
       reject(new Error('Payment gateway not available'));
@@ -73,7 +73,7 @@ function openCheckout(order: RazorpayOrderResponse, prefill: { name: string; ema
 
 export async function collectPayment(
   event: 'hackathon' | 'robo-race' | 'workshops' | 'kinetic-showdown' | 'esports-valorant' | 'esports-bgmi',
-  prefill: { name: string; email: string; contact: string },
+  prefill: { name: string; email?: string; contact: string },
   label: string
 ) {
   return collectPaymentWithOptions(event, prefill, label);
@@ -81,7 +81,7 @@ export async function collectPayment(
 
 export async function collectPaymentWithOptions(
   event: 'hackathon' | 'robo-race' | 'workshops' | 'kinetic-showdown' | 'esports-valorant' | 'esports-bgmi',
-  prefill: { name: string; email: string; contact: string },
+  prefill: { name: string; email?: string; contact: string },
   label: string,
   options?: { memberCount?: number }
 ) {

@@ -7,7 +7,6 @@ type RegisterResponse = { message: string };
 
 type HackathonMember = {
   name: string;
-  email: string;
   phone: string;
   gender: string;
 };
@@ -15,7 +14,6 @@ type HackathonMember = {
 const createMembers = (): HackathonMember[] =>
   Array.from({ length: 4 }, () => ({
     name: '',
-    email: '',
     phone: '',
     gender: 'female'
   }));
@@ -24,7 +22,6 @@ export default function Hackathon() {
   const [form, setForm] = useState({
     teamName: '',
     contactName: '',
-    contactEmail: '',
     contactPhone: '',
     collegeName: ''
   });
@@ -48,7 +45,7 @@ export default function Hackathon() {
 
       const payment = await collectPayment(
         'hackathon',
-        { name: form.contactName, email: form.contactEmail, contact: form.contactPhone },
+        { name: form.contactName, contact: form.contactPhone },
         'CodeHunt Hackathon'
       );
 
@@ -65,7 +62,6 @@ export default function Hackathon() {
       setForm({
         teamName: '',
         contactName: '',
-        contactEmail: '',
         contactPhone: '',
         collegeName: ''
       });
@@ -126,13 +122,6 @@ export default function Hackathon() {
             required
           />
           <input
-            placeholder="Leader email"
-            type="email"
-            value={form.contactEmail}
-            onChange={e => setForm({ ...form, contactEmail: e.target.value })}
-            required
-          />
-          <input
             placeholder="Leader WhatsApp number"
             value={form.contactPhone}
             onChange={e => setForm({ ...form, contactPhone: e.target.value })}
@@ -153,13 +142,6 @@ export default function Hackathon() {
                   placeholder="Member name"
                   value={member.name}
                   onChange={e => updateMember(index, 'name', e.target.value)}
-                  required
-                />
-                <input
-                  placeholder="Member email"
-                  type="email"
-                  value={member.email}
-                  onChange={e => updateMember(index, 'email', e.target.value)}
                   required
                 />
                 <input

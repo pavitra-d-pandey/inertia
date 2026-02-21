@@ -7,7 +7,6 @@ type RegisterResponse = { message: string };
 export default function OpenMic() {
   const [form, setForm] = useState({
     name: '',
-    email: '',
     phone: '',
     enrollmentNumber: '',
     year: '',
@@ -71,7 +70,6 @@ export default function OpenMic() {
         <h4>Open Mic Registration</h4>
         <form className="form-grid" onSubmit={handleSubmit}>
           <input placeholder="Name" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-          <input placeholder="Email" type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
           <input placeholder="WhatsApp number" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} required />
           <input placeholder="Enrollment number" value={form.enrollmentNumber} onChange={e => setForm({ ...form, enrollmentNumber: e.target.value })} required />
           <input placeholder="Year" value={form.year} onChange={e => setForm({ ...form, year: e.target.value })} required />

@@ -6,13 +6,13 @@ import { EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRe
 
 function formatMembersForHackathon(item: HackathonRegistration) {
   return item.members
-    .map((member, index) => `${index + 1}. ${member.name} (${member.gender}) | ${member.email} | ${member.phone}`)
+    .map((member, index) => `${index + 1}. ${member.name} (${member.gender}) | ${member.phone}`)
     .join('\n');
 }
 
 function formatMembersForRobo(item: RoboRegistration) {
   return item.members
-    .map((member, index) => `${index + 1}. ${member.name} | ${member.email} | ${member.phone} | ${member.branch} | ${member.semester} | ${member.collegeName}`)
+    .map((member, index) => `${index + 1}. ${member.name} | ${member.phone} | ${member.branch} | ${member.semester} | ${member.collegeName}`)
     .join('\n');
 }
 
@@ -123,7 +123,6 @@ export default function AdminRegistrations() {
                     </td>
                     <td>
                       <strong>Leader: {item.contactName}</strong>
-                      <p>{item.contactEmail}</p>
                       <p>{item.contactPhone}</p>
                       <p>{item.collegeName}</p>
                     </td>
@@ -149,7 +148,6 @@ export default function AdminRegistrations() {
               <tr>
                 <th>Workshop</th>
                 <th>Name</th>
-                <th>Email</th>
                 <th>Phone</th>
                 <th>College</th>
                 <th>Payment</th>
@@ -159,14 +157,13 @@ export default function AdminRegistrations() {
             <tbody>
               {workshops.length === 0 ? (
                 <tr>
-                  <td colSpan={7}>No registrations yet.</td>
+                  <td colSpan={6}>No registrations yet.</td>
                 </tr>
               ) : (
                 workshops.map(item => (
                   <tr key={item.id}>
                     <td>{item.workshop}</td>
                     <td>{item.name}</td>
-                    <td>{item.email}</td>
                     <td>{item.phone}</td>
                     <td>{item.collegeName}</td>
                     <td>
@@ -210,7 +207,6 @@ export default function AdminRegistrations() {
                     </td>
                     <td>
                       <strong>{item.captainName}</strong>
-                      <p>{item.email}</p>
                       <p>{item.phone}</p>
                     </td>
                     <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>{formatMembersForRobo(item)}</td>
@@ -259,7 +255,6 @@ export default function AdminRegistrations() {
                     </td>
                     <td>
                       <strong>{item.teamLeaderName}</strong>
-                      <p>{item.teamLeaderEmail}</p>
                       <p>{item.teamLeaderPhone}</p>
                     </td>
                     <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>
@@ -304,7 +299,6 @@ export default function AdminRegistrations() {
                       <p>{item.collegeName}</p>
                     </td>
                     <td>
-                      <p>{item.email}</p>
                       <p>{item.phone}</p>
                     </td>
                     <td>

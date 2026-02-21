@@ -17,7 +17,6 @@ export default function Workshops() {
   const [workshops, setWorkshops] = useState<Workshop[]>([IOT_WORKSHOP]);
   const [form, setForm] = useState({
     name: '',
-    email: '',
     phone: '',
     collegeName: '',
     workshopId: String(IOT_WORKSHOP.id)
@@ -46,7 +45,7 @@ export default function Workshops() {
     try {
       const payment = await collectPayment(
         'workshops',
-        { name: form.name, email: form.email, contact: form.phone },
+        { name: form.name, contact: form.phone },
         'Workshop'
       );
       const res = await fetchJson<RegisterResponse>('/api/workshops/register', {
@@ -59,7 +58,6 @@ export default function Workshops() {
       setResult(`${res.message} Redirecting to WhatsApp group...`);
       setForm(prev => ({
         name: '',
-        email: '',
         phone: '',
         collegeName: '',
         workshopId: prev.workshopId
@@ -93,13 +91,6 @@ export default function Workshops() {
             placeholder="Full name"
             value={form.name}
             onChange={e => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <input
-            placeholder="Email"
-            type="email"
-            value={form.email}
-            onChange={e => setForm({ ...form, email: e.target.value })}
             required
           />
           <input

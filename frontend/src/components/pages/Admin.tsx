@@ -22,10 +22,6 @@ export default function Admin() {
   const [culturePreview, setCulturePreview] = useState('');
   const [cultureDescription, setCultureDescription] = useState('');
   const [cultureFile, setCultureFile] = useState<File | null>(null);
-  const [mailAudience, setMailAudience] = useState<'all' | 'workshops' | 'hackathon' | 'kinetic-showdown' | 'esports' | 'open-mic'>('all');
-  const [mailSubject, setMailSubject] = useState('');
-  const [mailBody, setMailBody] = useState('');
-
   const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -171,33 +167,6 @@ export default function Admin() {
     }
   };
 
-  const handleBroadcastMail = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    setLoading(true);
-    setResult('');
-    try {
-      const sendRes = await fetchJson<{ message: string; count: number }>('/api/admin/notifications/broadcast', {
-        method: 'POST',
-        headers: {
-          'X-Admin-Token': getSecretAdminToken()
-        },
-        body: JSON.stringify({
-          audience: mailAudience,
-          subject: mailSubject,
-          message: mailBody
-        })
-      });
-      setResult(`${sendRes.message}. Sent to ${sendRes.count} recipients.`);
-      setMailSubject('');
-      setMailBody('');
-    } catch (err) {
-      setResult(err instanceof Error ? err.message : 'Mail send failed');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (!isUnlocked) {
     return (
       <section className="section">
@@ -224,7 +193,7 @@ export default function Admin() {
     <section className="section">
       <h2 className="section-title">Management Panel</h2>
       <p className="section-subtitle">
-        Manage content, registrations, and bulk announcements in one place.
+        Manage content and registrations in one place.
       </p>
 
       <div className="admin-links">
@@ -306,36 +275,6 @@ export default function Admin() {
           <input type="file" accept="image/*" onChange={e => setCultureFile(e.target.files?.[0] ?? null)} required />
           <button className="btn btn-primary" type="submit" disabled={loading}>
             {loading ? 'Saving...' : 'Save Cultural Event'}
-          </button>
-        </form>
-      </div>
-
-      <div className="card" style={{ marginTop: '28px' }}>
-        <h4>Send Mail To Registrants</h4>
-        <form className="form-grid" onSubmit={handleBroadcastMail}>
-          <select value={mailAudience} onChange={e => setMailAudience(e.target.value as 'all' | 'workshops' | 'hackathon' | 'kinetic-showdown' | 'esports' | 'open-mic')}>
-            <option value="all">Everyone (All Events)</option>
-            <option value="workshops">Only Workshops</option>
-            <option value="hackathon">Only Hackathon</option>
-            <option value="kinetic-showdown">Only Kinetic Showdown</option>
-            <option value="esports">Only eSports</option>
-            <option value="open-mic">Only Open Mic</option>
-          </select>
-          <input
-            placeholder="Mail subject"
-            value={mailSubject}
-            onChange={e => setMailSubject(e.target.value)}
-            required
-          />
-          <textarea
-            placeholder="Write the mail content..."
-            rows={6}
-            value={mailBody}
-            onChange={e => setMailBody(e.target.value)}
-            required
-          />
-          <button className="btn btn-primary" type="submit" disabled={loading}>
-            {loading ? 'Sending...' : 'Send Mail'}
           </button>
         </form>
       </div>

@@ -7,7 +7,6 @@ type RegisterResponse = { message: string };
 
 type RoboMember = {
   name: string;
-  email: string;
   phone: string;
   branch: string;
   semester: string;
@@ -19,14 +18,13 @@ export default function RoboRace() {
   const [form, setForm] = useState({
     teamName: '',
     teamLeaderName: '',
-    email: '',
     phone: '',
     collegeName: '',
     memberCount: 2
   });
   const [members, setMembers] = useState<RoboMember[]>([
-    { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' },
-    { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' }
+    { name: '', phone: '', branch: '', semester: '', collegeName: '' },
+    { name: '', phone: '', branch: '', semester: '', collegeName: '' }
   ]);
   const [result, setResult] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +41,7 @@ export default function RoboRace() {
       }
       return [
         ...prev,
-        ...Array.from({ length: count - prev.length }, () => ({ name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' }))
+        ...Array.from({ length: count - prev.length }, () => ({ name: '', phone: '', branch: '', semester: '', collegeName: '' }))
       ];
     });
   };
@@ -66,7 +64,7 @@ export default function RoboRace() {
     try {
       const payment = await collectPaymentWithOptions(
         'kinetic-showdown',
-        { name: form.teamLeaderName, email: form.email, contact: form.phone },
+        { name: form.teamLeaderName, contact: form.phone },
         'Kinetic Showdown'
       );
 
@@ -88,14 +86,13 @@ export default function RoboRace() {
       setForm({
         teamName: '',
         teamLeaderName: '',
-        email: '',
         phone: '',
         collegeName: '',
         memberCount: 2
       });
       setMembers([
-        { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' },
-        { name: '', email: '', phone: '', branch: '', semester: '', collegeName: '' }
+        { name: '', phone: '', branch: '', semester: '', collegeName: '' },
+        { name: '', phone: '', branch: '', semester: '', collegeName: '' }
       ]);
       setTimeout(() => redirectToWhatsApp(WHATSAPP_LINKS.kineticShowdown), 1400);
     } catch (err) {
@@ -151,13 +148,6 @@ export default function RoboRace() {
             required
           />
           <input
-            placeholder="Email"
-            type="email"
-            value={form.email}
-            onChange={e => setForm({ ...form, email: e.target.value })}
-            required
-          />
-          <input
             placeholder="WhatsApp number"
             value={form.phone}
             onChange={e => setForm({ ...form, phone: e.target.value })}
@@ -186,13 +176,6 @@ export default function RoboRace() {
                   placeholder="Student name"
                   value={member.name}
                   onChange={e => updateMember(index, 'name', e.target.value)}
-                  required
-                />
-                <input
-                  placeholder="Student email"
-                  type="email"
-                  value={member.email}
-                  onChange={e => updateMember(index, 'email', e.target.value)}
                   required
                 />
                 <input
