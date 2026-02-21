@@ -52,6 +52,7 @@ main {
   flex-direction: column;
   min-height: 100dvh;
   position: relative;
+  isolation: isolate;
 }
 
 .app-content {
@@ -494,6 +495,10 @@ textarea:focus {
 }
 
 .site-footer {
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+  display: block;
   background: #06090f;
   color: #e5e7eb;
   padding: 60px 8vw 30px;
