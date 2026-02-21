@@ -39,7 +39,7 @@ const fallbackEvents: EventInfo[] = [
   {
     id: 3,
     slug: 'robo-race',
-    title: 'Robo Race',
+    title: 'Kinetic ShowDown',
     description: 'RC car design and race challenge with teams of 2 to 4 members.',
     dateLabel: 'Final Day',
     ctaLabel: 'Register Robo Race'
