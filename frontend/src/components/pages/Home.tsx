@@ -11,7 +11,7 @@ const fallbackLanding: LandingContent = {
   location: 'Jabalpur Engineering College, Jabalpur, Madhya Pradesh',
   highlights: [
     'Hackathon',
-    'Workshop Series',
+    'IoT Workshop',
     'Robo Race',
     'eSports Arena',
     'Open Mic Stage',
@@ -31,8 +31,8 @@ const fallbackEvents: EventInfo[] = [
   {
     id: 2,
     slug: 'workshops',
-    title: 'Workshops',
-    description: 'Hands-on sessions with mentors and practical implementation.',
+    title: 'Workshop',
+    description: 'IoT-based single phase induction motor and speed control system workshop.',
     dateLabel: '2 Days',
     ctaLabel: 'Register Workshop'
   },
@@ -240,9 +240,25 @@ export default function Home() {
         </div>
       </section>
 
+      <section className="section">
+        <h2 className="section-title">Workshop Spotlight</h2>
+        <p className="section-subtitle">
+          Only one workshop will be conducted: IoT-based single phase induction motor and speed control system.
+        </p>
+        <div className="cards-grid">
+          <div className="card">
+            <h4>IoT-Based Motor Speed Control Workshop</h4>
+            <p>Mentor: Dr. Praveen Kumar Sharma (PhD, NIT Durgapur).</p>
+            <p>Date: 26-27 February 2026.</p>
+            <p>Venue: Jashan Audi, JEC Jabalpur.</p>
+            <p>Fee: INR 300.</p>
+          </div>
+        </div>
+      </section>
+
       <section className="section dark">
         <h2 className="section-title">Core Events</h2>
-        <p className="section-subtitle">Hackathon, Workshops, Robo Race, eSports, and Open Mic with dedicated registration flows.</p>
+        <p className="section-subtitle">Hackathon, Workshop, Robo Race, eSports, and Open Mic with dedicated registration flows.</p>
         <div className="event-grid">
           {(events && events.length > 0 ? events : fallbackEvents).map(event => (
             <div className="event-card" key={event.id}>
