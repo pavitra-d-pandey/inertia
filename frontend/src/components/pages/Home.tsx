@@ -73,7 +73,8 @@ const fallbackFaqs: FAQ[] = [
 function normalizeLegacyText(value: string) {
   return value
     .replace(/CodeHunt Hackathon/gi, 'Hackathon')
-    .replace(/Kinetic Showdown/gi, 'Robo Race');
+    .replace(/Kinetic Showdown/gi, 'Robo Race')
+    .replace(/Workshop Series/gi, 'IoT Workshop');
 }
 
 function normalizeHighlights(items: string[]) {
@@ -95,6 +96,14 @@ function normalizeEvents(data: EventInfo[]): EventInfo[] {
         ...event,
         title: 'Hackathon',
         ctaLabel: 'Register Hackathon'
+      };
+    }
+    if (event.slug === 'workshops') {
+      return {
+        ...event,
+        title: 'Workshop',
+        description: 'IoT-based single phase induction motor and speed control system workshop.',
+        ctaLabel: 'Register Workshop'
       };
     }
     return event;
@@ -125,8 +134,8 @@ export default function Home() {
         setLanding({
           ...fallbackLanding,
           ...data,
-          heroSubtitle: normalizeLegacyText(data?.heroSubtitle || fallbackLanding.heroSubtitle),
-          highlights: Array.isArray(data?.highlights) ? normalizeHighlights(data.highlights) : fallbackLanding.highlights
+          heroSubtitle: fallbackLanding.heroSubtitle,
+          highlights: fallbackLanding.highlights
         })
       )
       .catch(() => null);

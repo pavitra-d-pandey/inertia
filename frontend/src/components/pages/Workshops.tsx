@@ -7,20 +7,20 @@ type Workshop = { id: number; title: string; description: string };
 
 type RegisterResponse = { message: string };
 
-const fallbackWorkshops: Workshop[] = [
-  { id: 1, title: 'Generative AI Bootcamp', description: 'Prompt engineering, RAG, and agent workflows.' },
-  { id: 2, title: 'ML Ops Fundamentals', description: 'Deploy models with monitoring and pipelines.' },
-  { id: 3, title: 'Computer Vision Sprint', description: 'Build detection and tracking models.' }
-];
+const IOT_WORKSHOP: Workshop = {
+  id: 1,
+  title: 'IoT-Based Single Phase Induction Motor / Speed Control System',
+  description: 'Mentor: Dr. Praveen Kumar Sharma (PhD, NIT Durgapur) | Date: 26-27 Feb 2026 | Venue: Jashan Audi, JEC Jabalpur | Fee: INR 300.'
+};
 
 export default function Workshops() {
-  const [workshops, setWorkshops] = useState<Workshop[]>(fallbackWorkshops);
+  const [workshops, setWorkshops] = useState<Workshop[]>([IOT_WORKSHOP]);
   const [form, setForm] = useState({
     name: '',
     email: '',
     phone: '',
     collegeName: '',
-    workshopId: String(fallbackWorkshops[0].id)
+    workshopId: String(IOT_WORKSHOP.id)
   });
   const [result, setResult] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -28,10 +28,13 @@ export default function Workshops() {
   useEffect(() => {
     fetchJson<Workshop[]>('/api/workshops')
       .then(data => {
-        setWorkshops(data);
-        if (data[0]) {
-          setForm(prev => ({ ...prev, workshopId: String(data[0].id) }));
+        if (!Array.isArray(data) || data.length === 0) {
+          return;
         }
+        const preferred =
+          data.find(item => /iot|single phase|induction|speed control/i.test(`${item.title} ${item.description}`)) ?? data[0];
+        setWorkshops([{ ...IOT_WORKSHOP, id: preferred.id }]);
+        setForm(prev => ({ ...prev, workshopId: String(preferred.id) }));
       })
       .catch(() => null);
   }, []);
@@ -71,8 +74,8 @@ export default function Workshops() {
 
   return (
     <section className="section">
-      <h2 className="section-title">Workshops</h2>
-      <p className="section-subtitle">Choose your workshop and complete registration.</p>
+      <h2 className="section-title">Workshop</h2>
+      <p className="section-subtitle">Only one workshop is available. Complete registration below.</p>
 
       <div className="cards-grid">
         {workshops.map(workshop => (
@@ -111,16 +114,7 @@ export default function Workshops() {
             onChange={e => setForm({ ...form, collegeName: e.target.value })}
             required
           />
-          <select
-            value={form.workshopId}
-            onChange={e => setForm({ ...form, workshopId: e.target.value })}
-          >
-            {workshops.map(workshop => (
-              <option key={workshop.id} value={workshop.id}>
-                {workshop.title}
-              </option>
-            ))}
-          </select>
+          <input value={workshops[0]?.title ?? IOT_WORKSHOP.title} readOnly />
           <button className="btn btn-primary" type="submit" disabled={submitting}>
             {submitting ? 'Processing Payment...' : 'Pay & Register Workshop'}
           </button>
