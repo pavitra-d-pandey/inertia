@@ -108,7 +108,11 @@ export default function RoboRace() {
   return (
     <section className="section">
       <h2 className="section-title">Kinetic Showdown</h2>
-      <p className="section-subtitle">Prize Pool: INR 12,000. Team entry: INR 300 per team. Choose 2 to 4 members and complete payment.</p>
+      <div className="prize-pool-spotlight">
+        <span className="prize-pool-label">Prize Pool</span>
+        <div className="prize-pool-value">INR 12,000</div>
+      </div>
+      <p className="section-subtitle">Team entry: INR 300 per team. Choose 2 to 4 members and complete payment.</p>
 
       <div className="banner">
         <h4 style={{ marginTop: 0 }}>RC Car Competition - Information Brochure</h4>

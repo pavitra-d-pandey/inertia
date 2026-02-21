@@ -81,9 +81,11 @@ export default function Hackathon() {
   return (
     <section className="section">
       <h2 className="section-title">CodeHunt Hackathon</h2>
-      <p className="section-subtitle">
-        Prize Pool: INR 12,000. 12-hour hackathon with internship interview opportunities, product building, and live stage presentations.
-      </p>
+      <div className="prize-pool-spotlight">
+        <span className="prize-pool-label">Prize Pool</span>
+        <div className="prize-pool-value">INR 12,000</div>
+      </div>
+      <p className="section-subtitle">12-hour hackathon with internship interview opportunities, product building, and live stage presentations.</p>
 
       <div className="cards-grid" style={{ marginTop: '24px' }}>
         <div className="card">

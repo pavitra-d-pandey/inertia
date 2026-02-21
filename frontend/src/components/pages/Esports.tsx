@@ -94,7 +94,11 @@ export default function Esports() {
   return (
     <section className="section">
       <h2 className="section-title">eSports</h2>
-      <p className="section-subtitle">Prize Pool: INR 11,000. Select game first: Valorant (5 players, INR 300 per team) or BGMI (4 players, INR 200 per team).</p>
+      <div className="prize-pool-spotlight">
+        <span className="prize-pool-label">Prize Pool</span>
+        <div className="prize-pool-value">INR 11,000</div>
+      </div>
+      <p className="section-subtitle">Select game first: Valorant (5 players, INR 300 per team) or BGMI (4 players, INR 200 per team).</p>
 
       <div className="card" style={{ marginTop: '24px' }}>
         <h4>eSports Registration</h4>
