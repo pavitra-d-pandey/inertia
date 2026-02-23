@@ -79,7 +79,7 @@ export default function Hackathon() {
       <h2 className="section-title">CodeHunt Hackathon</h2>
       <div className="banner" style={{ marginBottom: '18px' }}>
         <strong>Important: Team size is fixed to 4 members only</strong>
-        <p style={{ margin: '8px 0 0' }}>1 Leader + 3 Team Members. Teams with 5 members are not allowed.</p>
+        <p style={{ margin: '8px 0 0' }}>1 Leader + 3 Team Members</p>
       </div>
       <div className="prize-pool-spotlight">
         <span className="prize-pool-label">Prize Pool</span>
