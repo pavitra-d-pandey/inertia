@@ -78,6 +78,12 @@ export default function Hackathon() {
     <section className="section">
       <h2 className="section-title">CodeHunt Hackathon</h2>
       <div className="banner" style={{ marginBottom: '18px' }}>
+        <strong>Top Note: We only need the solution for the idea.</strong>
+        <p style={{ margin: '8px 0 0' }}>
+          Focus on solving the problem clearly. Your implementation can be simple, scrappy, or polished.
+        </p>
+      </div>
+      <div className="banner" style={{ marginBottom: '18px' }}>
         <strong>Important: Team size is fixed to 4 members only</strong>
         <p style={{ margin: '8px 0 0' }}>1 Leader + 3 Team Members</p>
       </div>
@@ -106,6 +112,7 @@ export default function Hackathon() {
           <li><strong>Team size rule:</strong> Exactly 4 members (1 leader + 3 members).</li>
           <li>Registration fee: INR 300 per team.</li>
           <li>Problem statements will be revealed on the spot.</li>
+          <li><strong>Vibe coding is allowed:</strong> Use AI tools, rapid prototyping, and creative workflows to build your solution faster.</li>
           <li>100% internship opportunity path: 10 participants will be shortlisted for internship interviews at upGrad or TIME.</li>
           <li>Refreshments will be provided during the hackathon.</li>
           <li>Strong exposure for students across Jabalpur.</li>
