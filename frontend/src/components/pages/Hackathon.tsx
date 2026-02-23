@@ -12,7 +12,7 @@ type HackathonMember = {
 };
 
 const createMembers = (): HackathonMember[] =>
-  Array.from({ length: 4 }, () => ({
+  Array.from({ length: 3 }, () => ({
     name: '',
     phone: '',
     gender: 'female'
@@ -77,11 +77,15 @@ export default function Hackathon() {
   return (
     <section className="section">
       <h2 className="section-title">CodeHunt Hackathon</h2>
+      <div className="banner" style={{ marginBottom: '18px' }}>
+        <strong>Important: Team size is fixed to 4 members only</strong>
+        <p style={{ margin: '8px 0 0' }}>1 Leader + 3 Team Members. Teams with 5 members are not allowed.</p>
+      </div>
       <div className="prize-pool-spotlight">
         <span className="prize-pool-label">Prize Pool</span>
         <div className="prize-pool-value">INR 12,000</div>
       </div>
-      <p className="section-subtitle">12-hour hackathon with internship interview opportunities, product building, and live stage presentations.</p>
+      <p className="section-subtitle">Two-day hackathon with internship interview opportunities, prototype building, and live stage presentations.</p>
 
       <div className="cards-grid" style={{ marginTop: '24px' }}>
         <div className="card">
@@ -97,17 +101,20 @@ export default function Hackathon() {
       <div className="banner" style={{ marginTop: '22px' }}>
         <h4 style={{ marginTop: 0 }}>Why Join CodeHunt Hackathon</h4>
         <ul>
+          <li><strong>Day 1 (26 February):</strong> Build your prototype.</li>
+          <li><strong>Day 2 (27 February):</strong> Present and explain your prototype live on stage.</li>
+          <li><strong>Team size rule:</strong> Exactly 4 members (1 leader + 3 members).</li>
           <li>Registration fee: INR 300 per team.</li>
           <li>Problem statements will be revealed on the spot.</li>
           <li>100% internship opportunity path: 10 participants will be shortlisted for internship interviews at upGrad or TIME.</li>
           <li>Refreshments will be provided during the hackathon.</li>
           <li>Strong exposure for students across Jabalpur.</li>
-          <li>Teams will build a complete product and present it live on stage.</li>
         </ul>
       </div>
 
       <div className="card" style={{ marginTop: '24px' }}>
         <h4>Hackathon Team Registration</h4>
+        <p style={{ marginTop: 0 }}>Fill details for the leader first, then add 3 team members.</p>
         <form className="form-grid" onSubmit={handleSubmit}>
           <input
             placeholder="Team name"
@@ -136,16 +143,16 @@ export default function Hackathon() {
 
           {members.map((member, index) => (
             <div className="card" key={index}>
-              <h4>Member {index + 1}</h4>
+              <h4>Team Member {index + 1}</h4>
               <div className="form-grid">
                 <input
-                  placeholder="Member name"
+                  placeholder={`Member ${index + 1} name`}
                   value={member.name}
                   onChange={e => updateMember(index, 'name', e.target.value)}
                   required
                 />
                 <input
-                  placeholder="Member WhatsApp number"
+                  placeholder={`Member ${index + 1} WhatsApp number`}
                   value={member.phone}
                   onChange={e => updateMember(index, 'phone', e.target.value)}
                   required

@@ -24,8 +24,8 @@ const fallbackEvents: EventInfo[] = [
     id: 1,
     slug: 'hackathon',
     title: 'Hackathon',
-    description: '12-hour hackathon, INR 300/team, on-spot problem statements, and internship interview opportunities.',
-    dateLabel: '12 Hours',
+    description: '2-day hackathon: prototype build on 26 Feb and stage presentation on 27 Feb. Fixed team size: 4 (leader + 3 members).',
+    dateLabel: '26-27 Feb',
     ctaLabel: 'Register Hackathon'
   },
   {
@@ -63,8 +63,9 @@ const fallbackEvents: EventInfo[] = [
 ];
 
 const fallbackFaqs: FAQ[] = [
-  { id: 1, question: 'How long is Hackathon?', answer: 'Hackathon is a 12-hour event.' },
+  { id: 1, question: 'What is the hackathon schedule?', answer: '26 February: prototype build. 27 February: stage presentation and explanation.' },
   { id: 2, question: 'What is the hackathon registration fee?', answer: 'The Hackathon registration fee is INR 300 per team.' },
+  { id: 6, question: 'What is the hackathon team size?', answer: 'Exactly 4 members per team: 1 leader + 3 members.' },
   { id: 3, question: 'What are the eSports team sizes?', answer: 'Valorant needs 5 players, BGMI needs 4 players.' },
   { id: 4, question: 'When are hackathon problem statements announced?', answer: 'Problem statements are revealed on the spot.' },
   { id: 5, question: 'Can I register for multiple events?', answer: 'Yes, you can register for Hackathon, Workshops, Robo Race, eSports, and Open Mic.' }

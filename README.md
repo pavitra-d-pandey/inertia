@@ -38,10 +38,8 @@ Frontend env (see `frontend/.env.example`):
 - View registration submissions at `/secret-admin/registrations`
 
 ## Hackathon Team Logic
-- Teams are 5 members
+- Teams are 4 members total (1 leader + 3 members)
 - Must include at least 1 female member
-- Create team -> returns `teamCode`
-- Join team using that code
 
 ## Unstop API Integration (Placeholder)
 This codebase is ready to sync with Unstop once API access is provided. When you receive Unstop credentials or API docs, we will:

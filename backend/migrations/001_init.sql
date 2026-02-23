@@ -158,14 +158,14 @@ INSERT INTO highlights (title, position) VALUES
 ('Startup & Project Expo', 6);
 
 INSERT INTO events (slug, title, description, date_label, cta_label, sort_order) VALUES
-('hackathon', 'Unstop Hackathon', '5-member teams with at least one female member. Create or join via team code.', '48 Hours', 'Create/Join Team', 1),
+('hackathon', 'Unstop Hackathon', '4-member teams only: 1 leader + 3 members. At least one female member is required.', '26-27 Feb', 'Register Team', 1),
 ('workshops', 'AI & ML Workshops', 'Hands-on labs with expert mentors. Payments handled via Razorpay.', '2 Days', 'Register Workshop', 2),
 ('robo-race', 'Robo Race', 'Speed, precision, and control on our custom track.', 'Final Day', 'Register Robot', 3);
 
 INSERT INTO faqs (question, answer, sort_order) VALUES
-('How do hackathon teams work?', 'Create a team to get a code, or join an existing team with their code.', 1),
+('How do hackathon teams work?', 'Register as a fixed 4-member team: 1 leader and 3 members.', 1),
 ('Do workshops require payment?', 'Yes. Workshop registrations will be paid via Razorpay.', 2),
-('What is the team size rule?', 'Each team has 5 members and must include at least one female member.', 3),
+('What is the team size rule?', 'Each team must have exactly 4 members: 1 leader + 3 members, with at least one female member.', 3),
 ('Where is the venue?', 'All events take place at the Jabalpur Engineering College campus.', 4),
 ('Can I register for multiple events?', 'Yes, you can register for workshops, Robo Race, and the hackathon independently.', 5),
 ('How do I get updates?', 'Follow official Inertia channels and watch the website for schedule updates.', 6),

@@ -72,7 +72,7 @@ func SeedDefaults(database *mongo.Database) error {
 	}
 	if eventsCount == 0 {
 		_, err = events.InsertMany(ctx, []interface{}{
-			bson.M{"id": 1, "slug": "hackathon", "title": "CodeHunt Hackathon", "description": "12-hour hackathon with sponsored problem statements and rapid prototyping.", "dateLabel": "12 Hours", "ctaLabel": "Register Hackathon", "sortOrder": 1},
+			bson.M{"id": 1, "slug": "hackathon", "title": "CodeHunt Hackathon", "description": "2-day hackathon: prototype build on 26 Feb and stage presentation on 27 Feb. Team size is fixed to 4 (1 leader + 3 members).", "dateLabel": "26-27 Feb", "ctaLabel": "Register Hackathon", "sortOrder": 1},
 			bson.M{"id": 2, "slug": "workshops", "title": "Workshops", "description": "Hands-on sessions with industry mentors and sponsor-backed tracks.", "dateLabel": "2 Days", "ctaLabel": "Register Workshop", "sortOrder": 2},
 			bson.M{"id": 3, "slug": "kinetic-showdown", "title": "Kinetic Showdown", "description": "Build and race your custom RC car team in a timed challenge.", "dateLabel": "Final Day", "ctaLabel": "Register Team", "sortOrder": 3},
 			bson.M{"id": 4, "slug": "esports", "title": "eSports", "description": "Compete in Valorant or BGMI with your squad.", "dateLabel": "Tournament", "ctaLabel": "Register eSports", "sortOrder": 4},
@@ -90,7 +90,8 @@ func SeedDefaults(database *mongo.Database) error {
 	}
 	if faqCount == 0 {
 		_, err = faqs.InsertMany(ctx, []interface{}{
-			bson.M{"id": 1, "question": "How long is the hackathon?", "answer": "CodeHunt is a 12-hour hackathon.", "sortOrder": 1},
+			bson.M{"id": 1, "question": "What is the hackathon schedule?", "answer": "Day 1 (26 Feb): build the prototype. Day 2 (27 Feb): present and explain it on stage.", "sortOrder": 1},
+			bson.M{"id": 9, "question": "What is the hackathon team size?", "answer": "Team size is fixed to 4 members: 1 leader + 3 members.", "sortOrder": 9},
 			bson.M{"id": 2, "question": "Do workshops require payment?", "answer": "Yes. Workshop registrations are paid via Razorpay.", "sortOrder": 2},
 			bson.M{"id": 3, "question": "What are the eSports team sizes?", "answer": "Valorant requires 5 players and BGMI requires 4 players.", "sortOrder": 3},
 			bson.M{"id": 4, "question": "Where is the venue?", "answer": "All events take place at the Jabalpur Engineering College campus.", "sortOrder": 4},

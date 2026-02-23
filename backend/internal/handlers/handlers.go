@@ -400,8 +400,8 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
-	if len(req.Members) != 4 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "hackathon requires exactly 4 members"})
+	if len(req.Members) != 3 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "hackathon requires exactly 4 members total: 1 leader + 3 team members"})
 		return
 	}
 	femaleCount := 0
@@ -439,7 +439,7 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		"contactPhone": req.ContactPhone,
 		"collegeName":  req.CollegeName,
 		"members":      req.Members,
-		"memberCount":  len(req.Members),
+		"memberCount":  len(req.Members) + 1,
 		"femaleCount":  femaleCount,
 		"payment": bson.M{
 			"status":            "paid",
