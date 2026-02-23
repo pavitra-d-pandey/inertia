@@ -80,7 +80,7 @@ export default function Hackathon() {
       <div className="banner" style={{ marginBottom: '18px' }}>
         <strong>Top Note: We only need the solution for the idea.</strong>
         <p style={{ margin: '8px 0 0' }}>
-          Focus on solving the problem clearly. Your implementation can be simple, scrappy, or polished.
+          Focus on solving the problem clearly. Your implementation can be simple, scrappy, or polished. Vibe coding is allowed.
         </p>
       </div>
       <div className="banner" style={{ marginBottom: '18px' }}>
