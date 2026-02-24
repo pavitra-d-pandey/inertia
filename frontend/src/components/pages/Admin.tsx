@@ -29,7 +29,7 @@ export default function Admin() {
     e.preventDefault();
     const ok = unlockSecretAdmin(password);
     if (!ok) {
-      setResult('Wrong password. Use eventname@alphabetcount (all lowercase).');
+      setResult('Wrong password.');
       return;
     }
     setResult('');
@@ -176,7 +176,7 @@ export default function Admin() {
           <form className="form-grid" onSubmit={handleUnlock}>
             <input
               type="password"
-              placeholder="Examples: codehunt@8, openmic@7"
+              placeholder="Enter password"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
