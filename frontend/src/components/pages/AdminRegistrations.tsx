@@ -2,15 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchJson } from '../../lib/api';
 import { getSecretAdminToken, isSecretAdminUnlocked, unlockSecretAdmin } from '../../lib/adminAuth';
-import { EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRegistration } from '../../lib/types';
+import { ContactSubmission, EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRegistration, WorkshopRegistration } from '../../lib/types';
 
-type TableKey = 'codehunt' | 'kinetic' | 'esports' | 'openMic';
+type TableKey = 'codehunt' | 'kinetic' | 'esports' | 'openMic' | 'workshop';
 
 const TABLE_PASSWORDS: Record<TableKey, string> = {
   codehunt: 'codehunt@09',
   kinetic: 'kineticshowdown@15',
   esports: 'esports@19',
-  openMic: 'openmic@07'
+  openMic: 'openmic@07',
+  workshop: 'workshop@08'
 };
 
 function formatMembersForHackathon(item: HackathonRegistration) {
@@ -34,19 +35,23 @@ export default function AdminRegistrations() {
     codehunt: '',
     kinetic: '',
     esports: '',
-    openMic: ''
+    openMic: '',
+    workshop: ''
   });
   const [tableUnlocked, setTableUnlocked] = useState<Record<TableKey, boolean>>({
     codehunt: false,
     kinetic: false,
     esports: false,
-    openMic: false
+    openMic: false,
+    workshop: false
   });
 
   const [codehunt, setCodehunt] = useState<HackathonRegistration[]>([]);
   const [kinetic, setKinetic] = useState<RoboRegistration[]>([]);
   const [esports, setEsports] = useState<EsportsRegistration[]>([]);
   const [openMic, setOpenMic] = useState<OpenMicRegistration[]>([]);
+  const [workshops, setWorkshops] = useState<WorkshopRegistration[]>([]);
+  const [contacts, setContacts] = useState<ContactSubmission[]>([]);
 
   useEffect(() => {
     if (!isUnlocked) {
@@ -70,6 +75,14 @@ export default function AdminRegistrations() {
     fetchJson<OpenMicRegistration[]>('/api/admin/registrations/open-mic', { headers })
       .then(data => setOpenMic(Array.isArray(data) ? data : []))
       .catch(() => setOpenMic([]));
+
+    fetchJson<WorkshopRegistration[]>('/api/admin/registrations/workshops', { headers })
+      .then(data => setWorkshops(Array.isArray(data) ? data : []))
+      .catch(() => setWorkshops([]));
+
+    fetchJson<ContactSubmission[]>('/api/admin/registrations/contact', { headers })
+      .then(data => setContacts(Array.isArray(data) ? data : []))
+      .catch(() => setContacts([]));
   }, [isUnlocked]);
 
   const handleUnlock = (e: React.FormEvent) => {
@@ -354,6 +367,89 @@ export default function AdminRegistrations() {
             </table>
           </div>
         )}
+      </div>
+
+      <div className="card" style={{ marginTop: '22px' }}>
+        <h4>Workshop Registrations</h4>
+        {!tableUnlocked.workshop ? (
+          <div className="form-grid">
+            <input
+              type="password"
+              placeholder="Enter table password"
+              value={tableInputs.workshop}
+              onChange={e => setTableInputs(prev => ({ ...prev, workshop: e.target.value }))}
+            />
+            <button className="btn btn-primary" type="button" onClick={() => unlockTable('workshop')}>Unlock Table</button>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Workshop</th>
+                  <th>Name</th>
+                  <th>Phone</th>
+                  <th>College</th>
+                  <th>Payment</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workshops.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>No registrations yet.</td>
+                  </tr>
+                ) : (
+                  workshops.map(item => (
+                    <tr key={item.id}>
+                      <td>{item.workshop}</td>
+                      <td>{item.name}</td>
+                      <td>{item.phone}</td>
+                      <td>{item.collegeName}</td>
+                      <td>
+                        <strong>{item.paymentStatus || 'unknown'}</strong>
+                        <p>{item.paymentId || '-'}</p>
+                      </td>
+                      <td>{item.createdAt}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginTop: '22px' }}>
+        <h4>Contact Us Submissions</h4>
+        <div className="table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Issue</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contacts.length === 0 ? (
+                <tr>
+                  <td colSpan={4}>No contact submissions yet.</td>
+                </tr>
+              ) : (
+                contacts.map(item => (
+                  <tr key={item.id}>
+                    <td>{item.email}</td>
+                    <td>{item.phone}</td>
+                    <td style={{ whiteSpace: 'pre-wrap', minWidth: '280px' }}>{item.issue}</td>
+                    <td>{item.createdAt}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
   );
