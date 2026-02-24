@@ -128,6 +128,38 @@ export type EsportsRegistration = {
   createdAt: string;
 };
 
+export type SoloEsportsRegistration = {
+  id: number;
+  game: string;
+  playerName: string;
+  whatsappNumber: string;
+  gameId: string;
+  isCollegeParticipant: boolean;
+  collegeName: string;
+  isTeamAssigned: boolean;
+  assignedTeamId: number;
+  refundEligible: boolean;
+  paymentStatus: string;
+  paymentId: string;
+  createdAt: string;
+};
+
+export type SoloEsportsRandomTeam = {
+  id: number;
+  teamCode: string;
+  game: string;
+  teamSize: number;
+  memberCount: number;
+  members: Array<{
+    soloRegistrationId: number;
+    name: string;
+    whatsappNumber: string;
+    gameId: string;
+    collegeName: string;
+  }>;
+  createdAt: string;
+};
+
 export type OpenMicRegistration = {
   id: number;
   name: string;

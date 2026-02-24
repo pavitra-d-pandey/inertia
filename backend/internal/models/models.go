@@ -144,6 +144,40 @@ type EsportsRegistration struct {
 	CreatedAt            string            `json:"createdAt"`
 }
 
+type SoloEsportsRegistration struct {
+	ID                   int64  `json:"id"`
+	Game                 string `json:"game"`
+	PlayerName           string `json:"playerName"`
+	WhatsAppNumber       string `json:"whatsappNumber"`
+	GameID               string `json:"gameId"`
+	IsCollegeParticipant bool   `json:"isCollegeParticipant"`
+	CollegeName          string `json:"collegeName"`
+	IsTeamAssigned       bool   `json:"isTeamAssigned"`
+	AssignedTeamID       int64  `json:"assignedTeamId"`
+	RefundEligible       bool   `json:"refundEligible"`
+	PaymentStatus        string `json:"paymentStatus"`
+	PaymentID            string `json:"paymentId"`
+	CreatedAt            string `json:"createdAt"`
+}
+
+type SoloEsportsRandomTeamMember struct {
+	SoloRegistrationID int64  `json:"soloRegistrationId"`
+	Name               string `json:"name"`
+	WhatsAppNumber     string `json:"whatsappNumber"`
+	GameID             string `json:"gameId"`
+	CollegeName        string `json:"collegeName"`
+}
+
+type SoloEsportsRandomTeam struct {
+	ID          int64                         `json:"id"`
+	TeamCode    string                        `json:"teamCode"`
+	Game        string                        `json:"game"`
+	TeamSize    int                           `json:"teamSize"`
+	MemberCount int                           `json:"memberCount"`
+	Members     []SoloEsportsRandomTeamMember `json:"members"`
+	CreatedAt   string                        `json:"createdAt"`
+}
+
 type OpenMicRegistration struct {
 	ID               int64  `json:"id"`
 	Name             string `json:"name"`

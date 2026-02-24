@@ -53,6 +53,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		api.POST("/kinetic-showdown/register", h.registerKineticShowdown)
 		api.POST("/hackathon/register", h.registerHackathon)
 		api.POST("/esports/register", h.registerEsports)
+		api.POST("/esports/solo-register", h.registerSoloEsports)
 		api.POST("/open-mic/register", h.registerOpenMic)
 		api.POST("/uploads/document", h.uploadDocument)
 		api.POST("/payments/razorpay/order", h.createRazorpayOrder)
@@ -77,6 +78,9 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.GET("/registrations/kinetic-showdown", h.getRoboRegistrations)
 		admin.GET("/registrations/hackathon", h.getHackathonRegistrations)
 		admin.GET("/registrations/esports", h.getEsportsRegistrations)
+		admin.GET("/registrations/esports-solo", h.getSoloEsportsRegistrations)
+		admin.GET("/registrations/esports-solo-random-teams", h.getSoloEsportsRandomTeams)
+		admin.POST("/esports-solo/create-random-team", h.createSoloEsportsRandomTeam)
 		admin.GET("/registrations/open-mic", h.getOpenMicRegistrations)
 		admin.GET("/registrations/contact", h.getContactRegistrations)
 	}
@@ -554,6 +558,76 @@ func (h *Handler) registerEsports(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "eSports registration saved"})
 }
 
+func (h *Handler) registerSoloEsports(c *gin.Context) {
+	var req struct {
+		Game                 string `json:"game"`
+		PlayerName           string `json:"playerName"`
+		WhatsAppNumber       string `json:"whatsappNumber"`
+		GameID               string `json:"gameId"`
+		IsCollegeParticipant bool   `json:"isCollegeParticipant"`
+		CollegeName          string `json:"collegeName"`
+		RazorpayOrderID      string `json:"razorpayOrderId"`
+		RazorpayPaymentID    string `json:"razorpayPaymentId"`
+		RazorpaySignature    string `json:"razorpaySignature"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	game := strings.ToLower(strings.TrimSpace(req.Game))
+	if game != "valorant" && game != "bgmi" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid game"})
+		return
+	}
+	if strings.TrimSpace(req.PlayerName) == "" || strings.TrimSpace(req.WhatsAppNumber) == "" || strings.TrimSpace(req.GameID) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
+		return
+	}
+	if req.IsCollegeParticipant && strings.TrimSpace(req.CollegeName) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "college name is required for college participants"})
+		return
+	}
+	if !verifyRazorpayPayment(req.RazorpayOrderID, req.RazorpayPaymentID, req.RazorpaySignature, h.Config.RazorpayKeySecret) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment verification"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+	id, err := h.nextID(ctx, "esports_solo_registrations")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
+		return
+	}
+
+	_, err = h.DB.Collection("esports_solo_registrations").InsertOne(ctx, bson.M{
+		"id":                   id,
+		"game":                 game,
+		"playerName":           strings.TrimSpace(req.PlayerName),
+		"whatsappNumber":       strings.TrimSpace(req.WhatsAppNumber),
+		"gameId":               strings.TrimSpace(req.GameID),
+		"isCollegeParticipant": req.IsCollegeParticipant,
+		"collegeName":          strings.TrimSpace(req.CollegeName),
+		"isTeamAssigned":       false,
+		"refundEligible":       true,
+		"payment": bson.M{
+			"status":            "paid",
+			"razorpayOrderId":   strings.TrimSpace(req.RazorpayOrderID),
+			"razorpayPaymentId": strings.TrimSpace(req.RazorpayPaymentID),
+		},
+		"createdAt": time.Now(),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "registration save failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Solo eSports registration saved. You will be matched with random squad teammates. If we cannot complete your team, your amount will be refunded.",
+	})
+}
+
 func (h *Handler) registerOpenMic(c *gin.Context) {
 	var req struct {
 		Name             string `json:"name"`
@@ -666,6 +740,10 @@ func (h *Handler) createRazorpayOrder(c *gin.Context) {
 		amount = 30000
 	case "esports-bgmi":
 		amount = 20000
+	case "esports-solo-valorant":
+		amount = 6000
+	case "esports-solo-bgmi":
+		amount = 5000
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event"})
 		return
@@ -1368,6 +1446,226 @@ func (h *Handler) getEsportsRegistrations(c *gin.Context) {
 				PaymentStatus: reg.Payment.Status,
 				PaymentID:     reg.Payment.RazorpayPaymentID,
 				CreatedAt:     reg.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) getSoloEsportsRegistrations(c *gin.Context) {
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("esports_solo_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	if err != nil {
+		c.JSON(http.StatusOK, []models.SoloEsportsRegistration{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var items []models.SoloEsportsRegistration
+	for cursor.Next(ctx) {
+		var reg struct {
+			ID                   int64  `bson:"id"`
+			Game                 string `bson:"game"`
+			PlayerName           string `bson:"playerName"`
+			WhatsAppNumber       string `bson:"whatsappNumber"`
+			GameID               string `bson:"gameId"`
+			IsCollegeParticipant bool   `bson:"isCollegeParticipant"`
+			CollegeName          string `bson:"collegeName"`
+			IsTeamAssigned       bool   `bson:"isTeamAssigned"`
+			AssignedTeamID       int64  `bson:"assignedTeamId"`
+			RefundEligible       bool   `bson:"refundEligible"`
+			Payment              struct {
+				Status            string `bson:"status"`
+				RazorpayPaymentID string `bson:"razorpayPaymentId"`
+			} `bson:"payment"`
+			CreatedAt time.Time `bson:"createdAt"`
+		}
+		if err := cursor.Decode(&reg); err == nil {
+			items = append(items, models.SoloEsportsRegistration{
+				ID:                   reg.ID,
+				Game:                 reg.Game,
+				PlayerName:           reg.PlayerName,
+				WhatsAppNumber:       reg.WhatsAppNumber,
+				GameID:               reg.GameID,
+				IsCollegeParticipant: reg.IsCollegeParticipant,
+				CollegeName:          reg.CollegeName,
+				IsTeamAssigned:       reg.IsTeamAssigned,
+				AssignedTeamID:       reg.AssignedTeamID,
+				RefundEligible:       reg.RefundEligible,
+				PaymentStatus:        reg.Payment.Status,
+				PaymentID:            reg.Payment.RazorpayPaymentID,
+				CreatedAt:            reg.CreatedAt.Format("2006-01-02 15:04:05"),
+			})
+		}
+	}
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) createSoloEsportsRandomTeam(c *gin.Context) {
+	var req struct {
+		Game string `json:"game"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	game := strings.ToLower(strings.TrimSpace(req.Game))
+	teamSize := 0
+	switch game {
+	case "bgmi":
+		teamSize = 4
+	case "valorant":
+		teamSize = 5
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid game"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("esports_solo_registrations").Find(
+		ctx,
+		bson.M{"game": game, "isTeamAssigned": false},
+		options.Find().SetSort(bson.D{{Key: "createdAt", Value: 1}}).SetLimit(int64(teamSize)),
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch solo registrations"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	type soloCandidate struct {
+		ID             int64  `bson:"id"`
+		PlayerName     string `bson:"playerName"`
+		WhatsAppNumber string `bson:"whatsappNumber"`
+		GameID         string `bson:"gameId"`
+		CollegeName    string `bson:"collegeName"`
+	}
+	var picked []soloCandidate
+	for cursor.Next(ctx) {
+		var row soloCandidate
+		if err := cursor.Decode(&row); err == nil {
+			picked = append(picked, row)
+		}
+	}
+	if len(picked) < teamSize {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   fmt.Sprintf("not enough solo players to create a %s squad yet", strings.ToUpper(game)),
+			"message": "Players who are still unmatched remain refund-eligible.",
+		})
+		return
+	}
+
+	randomTeamID, err := h.nextID(ctx, "esports_solo_random_teams")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create random team"})
+		return
+	}
+
+	members := make([]bson.M, 0, len(picked))
+	registrationIDs := make([]int64, 0, len(picked))
+	for _, player := range picked {
+		registrationIDs = append(registrationIDs, player.ID)
+		members = append(members, bson.M{
+			"soloRegistrationId": player.ID,
+			"name":               player.PlayerName,
+			"whatsappNumber":     player.WhatsAppNumber,
+			"gameId":             player.GameID,
+			"collegeName":        player.CollegeName,
+		})
+	}
+
+	teamCode := generateTeamCode(game)
+	_, err = h.DB.Collection("esports_solo_random_teams").InsertOne(ctx, bson.M{
+		"id":              randomTeamID,
+		"teamCode":        teamCode,
+		"game":            game,
+		"teamSize":        teamSize,
+		"memberCount":     len(members),
+		"registrationIds": registrationIDs,
+		"members":         members,
+		"createdAt":       time.Now(),
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create random team"})
+		return
+	}
+
+	_, err = h.DB.Collection("esports_solo_registrations").UpdateMany(
+		ctx,
+		bson.M{"id": bson.M{"$in": registrationIDs}},
+		bson.M{
+			"$set": bson.M{
+				"isTeamAssigned": true,
+				"assignedTeamId": randomTeamID,
+				"refundEligible": false,
+				"assignedAt":     time.Now(),
+			},
+		},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "team was created but assignment update failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message":  fmt.Sprintf("Random %s squad created with %d players", strings.ToUpper(game), teamSize),
+		"teamId":   randomTeamID,
+		"teamCode": teamCode,
+	})
+}
+
+func (h *Handler) getSoloEsportsRandomTeams(c *gin.Context) {
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("esports_solo_random_teams").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	if err != nil {
+		c.JSON(http.StatusOK, []models.SoloEsportsRandomTeam{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var items []models.SoloEsportsRandomTeam
+	for cursor.Next(ctx) {
+		var reg struct {
+			ID          int64  `bson:"id"`
+			TeamCode    string `bson:"teamCode"`
+			Game        string `bson:"game"`
+			TeamSize    int    `bson:"teamSize"`
+			MemberCount int    `bson:"memberCount"`
+			Members     []struct {
+				SoloRegistrationID int64  `bson:"soloRegistrationId"`
+				Name               string `bson:"name"`
+				WhatsAppNumber     string `bson:"whatsappNumber"`
+				GameID             string `bson:"gameId"`
+				CollegeName        string `bson:"collegeName"`
+			} `bson:"members"`
+			CreatedAt time.Time `bson:"createdAt"`
+		}
+		if err := cursor.Decode(&reg); err == nil {
+			teamMembers := make([]models.SoloEsportsRandomTeamMember, 0, len(reg.Members))
+			for _, member := range reg.Members {
+				teamMembers = append(teamMembers, models.SoloEsportsRandomTeamMember{
+					SoloRegistrationID: member.SoloRegistrationID,
+					Name:               member.Name,
+					WhatsAppNumber:     member.WhatsAppNumber,
+					GameID:             member.GameID,
+					CollegeName:        member.CollegeName,
+				})
+			}
+			items = append(items, models.SoloEsportsRandomTeam{
+				ID:          reg.ID,
+				TeamCode:    reg.TeamCode,
+				Game:        reg.Game,
+				TeamSize:    reg.TeamSize,
+				MemberCount: reg.MemberCount,
+				Members:     teamMembers,
+				CreatedAt:   reg.CreatedAt.Format("2006-01-02 15:04:05"),
 			})
 		}
 	}

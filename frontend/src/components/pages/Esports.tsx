@@ -22,6 +22,7 @@ type SubstitutePlayer = {
 };
 
 export default function Esports() {
+  const [mode, setMode] = useState<'team' | 'solo'>('team');
   const [game, setGame] = useState<'valorant' | 'bgmi'>('valorant');
   const [form, setForm] = useState({
     teamName: '',
@@ -29,6 +30,13 @@ export default function Esports() {
     collegeName: '',
     teamLeaderName: '',
     teamLeaderPhone: ''
+  });
+  const [soloForm, setSoloForm] = useState({
+    playerName: '',
+    whatsappNumber: '',
+    gameId: '',
+    isCollegeParticipant: 'yes' as 'yes' | 'no',
+    collegeName: ''
   });
   const [hasSubstitute, setHasSubstitute] = useState<'yes' | 'no'>('no');
   const [substitute, setSubstitute] = useState<SubstitutePlayer>({
@@ -41,8 +49,20 @@ export default function Esports() {
   const [result, setResult] = useState('');
 
   const requiredCount = useMemo(() => (game === 'valorant' ? 5 : 4), [game]);
-  const feeLabel = game === 'valorant' ? 'INR 300' : 'INR 200';
-  const paymentEvent = game === 'valorant' ? 'esports-valorant' : 'esports-bgmi';
+
+  const feeLabel = useMemo(() => {
+    if (mode === 'solo') {
+      return game === 'valorant' ? 'INR 60' : 'INR 50';
+    }
+    return game === 'valorant' ? 'INR 300' : 'INR 200';
+  }, [game, mode]);
+
+  const paymentEvent = useMemo(() => {
+    if (mode === 'solo') {
+      return game === 'valorant' ? 'esports-solo-valorant' : 'esports-solo-bgmi';
+    }
+    return game === 'valorant' ? 'esports-valorant' : 'esports-bgmi';
+  }, [game, mode]);
 
   const onGameChange = (value: 'valorant' | 'bgmi') => {
     setGame(value);
@@ -58,27 +78,39 @@ export default function Esports() {
     setResult('');
     setSubmitting(true);
     try {
-      const payment = await collectPayment(
-        paymentEvent,
-        { name: form.teamLeaderName, contact: form.teamLeaderPhone },
-        `eSports ${game.toUpperCase()}`
-      );
+      const prefill = mode === 'solo'
+        ? { name: soloForm.playerName, contact: soloForm.whatsappNumber }
+        : { name: form.teamLeaderName, contact: form.teamLeaderPhone };
 
-      const payloadMembers = members.map(member => ({ ...member }));
+      const payment = await collectPayment(paymentEvent, prefill, mode === 'solo' ? `Solo eSports ${game.toUpperCase()}` : `eSports ${game.toUpperCase()}`);
 
-      const res = await fetchJson<RegisterResponse>('/api/esports/register', {
+      const endpoint = mode === 'solo' ? '/api/esports/solo-register' : '/api/esports/register';
+      const body = mode === 'solo'
+        ? {
+            game,
+            playerName: soloForm.playerName,
+            whatsappNumber: soloForm.whatsappNumber,
+            gameId: soloForm.gameId,
+            isCollegeParticipant: soloForm.isCollegeParticipant === 'yes',
+            collegeName: soloForm.isCollegeParticipant === 'yes' ? soloForm.collegeName.trim() : '',
+            ...payment
+          }
+        : {
+            ...form,
+            isCollegeParticipant: form.isCollegeParticipant === 'yes',
+            collegeName: form.isCollegeParticipant === 'yes' ? form.collegeName.trim() : '',
+            game,
+            members: members.map(member => ({ ...member })),
+            hasSubstitute: hasSubstitute === 'yes',
+            ...(hasSubstitute === 'yes' ? { substitutePlayer: substitute } : {}),
+            ...payment
+          };
+
+      const res = await fetchJson<RegisterResponse>(endpoint, {
         method: 'POST',
-        body: JSON.stringify({
-          ...form,
-          isCollegeParticipant: form.isCollegeParticipant === 'yes',
-          collegeName: form.isCollegeParticipant === 'yes' ? form.collegeName.trim() : '',
-          game,
-          members: payloadMembers,
-          hasSubstitute: hasSubstitute === 'yes',
-          ...(hasSubstitute === 'yes' ? { substitutePlayer: substitute } : {}),
-          ...payment
-        })
+        body: JSON.stringify(body)
       });
+
       setResult(`${res.message} Redirecting to WhatsApp group...`);
       setTimeout(() => redirectToWhatsApp(WHATSAPP_LINKS.esports), 1400);
     } catch (err) {
@@ -133,41 +165,70 @@ export default function Esports() {
             <option value="valorant">Valorant (5 players)</option>
             <option value="bgmi">BGMI (4 players)</option>
           </select>
-          <input placeholder="Team name" value={form.teamName} onChange={e => setForm({ ...form, teamName: e.target.value })} required />
-          <select value={form.isCollegeParticipant} onChange={e => setForm({ ...form, isCollegeParticipant: e.target.value as 'yes' | 'no' })}>
-            <option value="yes">Are you from a college? Yes</option>
-            <option value="no">Are you from a college? No</option>
+
+          <select value={mode} onChange={e => setMode(e.target.value as 'team' | 'solo')}>
+            <option value="team">Team Registration</option>
+            <option value="solo">Solo Registration (Random Squad Match)</option>
           </select>
-          {form.isCollegeParticipant === 'yes' && (
-            <input placeholder="College name" value={form.collegeName} onChange={e => setForm({ ...form, collegeName: e.target.value })} required />
+
+          {mode === 'solo' && (
+            <div className="banner" style={{ marginBottom: '8px' }}>
+              You can register solo for BGMI or Valorant. You will still play in squad format and we will match you with random teammates. If a full team cannot be formed, your registration amount will be refunded.
+            </div>
           )}
-          <input placeholder="Team leader name" value={form.teamLeaderName} onChange={e => setForm({ ...form, teamLeaderName: e.target.value })} required />
-          <input placeholder="Team leader WhatsApp number" value={form.teamLeaderPhone} onChange={e => setForm({ ...form, teamLeaderPhone: e.target.value })} required />
 
-          {members.map((member, index) => (
-            <div className="card" key={index}>
-              <h4>Player {index + 1}</h4>
-              <div className="form-grid">
-                <input placeholder="Name" value={member.name} onChange={e => updateMember(index, 'name', e.target.value)} required />
-                <input placeholder="WhatsApp number" value={member.whatsappNumber} onChange={e => updateMember(index, 'whatsappNumber', e.target.value)} required />
-                <input placeholder="Game ID" value={member.gameId} onChange={e => updateMember(index, 'gameId', e.target.value)} required />
-              </div>
-            </div>
-          ))}
+          {mode === 'team' ? (
+            <>
+              <input placeholder="Team name" value={form.teamName} onChange={e => setForm({ ...form, teamName: e.target.value })} required />
+              <select value={form.isCollegeParticipant} onChange={e => setForm({ ...form, isCollegeParticipant: e.target.value as 'yes' | 'no' })}>
+                <option value="yes">Are you from a college? Yes</option>
+                <option value="no">Are you from a college? No</option>
+              </select>
+              {form.isCollegeParticipant === 'yes' && (
+                <input placeholder="College name" value={form.collegeName} onChange={e => setForm({ ...form, collegeName: e.target.value })} required />
+              )}
+              <input placeholder="Team leader name" value={form.teamLeaderName} onChange={e => setForm({ ...form, teamLeaderName: e.target.value })} required />
+              <input placeholder="Team leader WhatsApp number" value={form.teamLeaderPhone} onChange={e => setForm({ ...form, teamLeaderPhone: e.target.value })} required />
 
-          <select value={hasSubstitute} onChange={e => setHasSubstitute(e.target.value as 'yes' | 'no')}>
-            <option value="no">Need substitute player? No</option>
-            <option value="yes">Need substitute player? Yes</option>
-          </select>
-          {hasSubstitute === 'yes' && (
-            <div className="card">
-              <h4>Substitute Player Details</h4>
-              <div className="form-grid">
-                <input placeholder="Substitute name" value={substitute.name} onChange={e => setSubstitute({ ...substitute, name: e.target.value })} required />
-                <input placeholder="Substitute Game ID" value={substitute.gameId} onChange={e => setSubstitute({ ...substitute, gameId: e.target.value })} required />
-                <input placeholder="Substitute WhatsApp number" value={substitute.whatsappNumber} onChange={e => setSubstitute({ ...substitute, whatsappNumber: e.target.value })} required />
-              </div>
-            </div>
+              {members.map((member, index) => (
+                <div className="card" key={index}>
+                  <h4>Player {index + 1}</h4>
+                  <div className="form-grid">
+                    <input placeholder="Name" value={member.name} onChange={e => updateMember(index, 'name', e.target.value)} required />
+                    <input placeholder="WhatsApp number" value={member.whatsappNumber} onChange={e => updateMember(index, 'whatsappNumber', e.target.value)} required />
+                    <input placeholder="Game ID" value={member.gameId} onChange={e => updateMember(index, 'gameId', e.target.value)} required />
+                  </div>
+                </div>
+              ))}
+
+              <select value={hasSubstitute} onChange={e => setHasSubstitute(e.target.value as 'yes' | 'no')}>
+                <option value="no">Need substitute player? No</option>
+                <option value="yes">Need substitute player? Yes</option>
+              </select>
+              {hasSubstitute === 'yes' && (
+                <div className="card">
+                  <h4>Substitute Player Details</h4>
+                  <div className="form-grid">
+                    <input placeholder="Substitute name" value={substitute.name} onChange={e => setSubstitute({ ...substitute, name: e.target.value })} required />
+                    <input placeholder="Substitute Game ID" value={substitute.gameId} onChange={e => setSubstitute({ ...substitute, gameId: e.target.value })} required />
+                    <input placeholder="Substitute WhatsApp number" value={substitute.whatsappNumber} onChange={e => setSubstitute({ ...substitute, whatsappNumber: e.target.value })} required />
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <input placeholder="Player name" value={soloForm.playerName} onChange={e => setSoloForm({ ...soloForm, playerName: e.target.value })} required />
+              <input placeholder="WhatsApp number" value={soloForm.whatsappNumber} onChange={e => setSoloForm({ ...soloForm, whatsappNumber: e.target.value })} required />
+              <input placeholder="Game ID" value={soloForm.gameId} onChange={e => setSoloForm({ ...soloForm, gameId: e.target.value })} required />
+              <select value={soloForm.isCollegeParticipant} onChange={e => setSoloForm({ ...soloForm, isCollegeParticipant: e.target.value as 'yes' | 'no' })}>
+                <option value="yes">Are you from a college? Yes</option>
+                <option value="no">Are you from a college? No</option>
+              </select>
+              {soloForm.isCollegeParticipant === 'yes' && (
+                <input placeholder="College name" value={soloForm.collegeName} onChange={e => setSoloForm({ ...soloForm, collegeName: e.target.value })} required />
+              )}
+            </>
           )}
 
           <button className="btn btn-primary" type="submit" disabled={submitting}>
