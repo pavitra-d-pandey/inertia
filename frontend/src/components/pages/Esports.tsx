@@ -166,10 +166,22 @@ export default function Esports() {
             <option value="bgmi">BGMI (4 players)</option>
           </select>
 
-          <select value={mode} onChange={e => setMode(e.target.value as 'team' | 'solo')}>
-            <option value="team">Team Registration</option>
-            <option value="solo">Solo Registration (Random Squad Match)</option>
-          </select>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className={`btn ${mode === 'team' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setMode('team')}
+            >
+              Team Registration
+            </button>
+            <button
+              type="button"
+              className={`btn ${mode === 'solo' ? 'btn-primary' : 'btn-ghost'}`}
+              onClick={() => setMode('solo')}
+            >
+              Solo Registration
+            </button>
+          </div>
 
           {mode === 'solo' && (
             <div className="banner" style={{ marginBottom: '8px' }}>
