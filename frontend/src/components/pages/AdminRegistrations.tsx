@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchJson } from '../../lib/api';
 import { getSecretAdminToken, isSecretAdminUnlocked, unlockSecretAdmin } from '../../lib/adminAuth';
-import { ContactSubmission, EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRegistration, SoloEsportsRandomTeam, SoloEsportsRegistration, WorkshopRegistration } from '../../lib/types';
+import { EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRegistration } from '../../lib/types';
 
 function formatMembersForHackathon(item: HackathonRegistration) {
   return item.members
@@ -20,88 +20,46 @@ export default function AdminRegistrations() {
   const [isUnlocked, setIsUnlocked] = useState(isSecretAdminUnlocked());
   const [password, setPassword] = useState('');
   const [result, setResult] = useState('');
-  const [soloActionLoading, setSoloActionLoading] = useState<'bgmi' | 'valorant' | null>(null);
 
-  const [hackathon, setHackathon] = useState<HackathonRegistration[]>([]);
-  const [workshops, setWorkshops] = useState<WorkshopRegistration[]>([]);
-  const [roboRace, setRoboRace] = useState<RoboRegistration[]>([]);
+  const [codehunt, setCodehunt] = useState<HackathonRegistration[]>([]);
+  const [kinetic, setKinetic] = useState<RoboRegistration[]>([]);
   const [esports, setEsports] = useState<EsportsRegistration[]>([]);
-  const [soloEsports, setSoloEsports] = useState<SoloEsportsRegistration[]>([]);
-  const [soloRandomTeams, setSoloRandomTeams] = useState<SoloEsportsRandomTeam[]>([]);
   const [openMic, setOpenMic] = useState<OpenMicRegistration[]>([]);
-  const [contacts, setContacts] = useState<ContactSubmission[]>([]);
-
-  const loadRegistrations = () => {
-    const headers = { 'X-Admin-Token': getSecretAdminToken() };
-
-    fetchJson<HackathonRegistration[]>('/api/admin/registrations/hackathon', { headers })
-      .then(data => setHackathon(Array.isArray(data) ? data : []))
-      .catch(() => setHackathon([]));
-
-    fetchJson<WorkshopRegistration[]>('/api/admin/registrations/workshops', { headers })
-      .then(data => setWorkshops(Array.isArray(data) ? data : []))
-      .catch(() => setWorkshops([]));
-
-    fetchJson<RoboRegistration[]>('/api/admin/registrations/kinetic-showdown', { headers })
-      .then(data => setRoboRace(Array.isArray(data) ? data : []))
-      .catch(() => setRoboRace([]));
-
-    fetchJson<EsportsRegistration[]>('/api/admin/registrations/esports', { headers })
-      .then(data => setEsports(Array.isArray(data) ? data : []))
-      .catch(() => setEsports([]));
-
-    fetchJson<SoloEsportsRegistration[]>('/api/admin/registrations/esports-solo', { headers })
-      .then(data => setSoloEsports(Array.isArray(data) ? data : []))
-      .catch(() => setSoloEsports([]));
-
-    fetchJson<SoloEsportsRandomTeam[]>('/api/admin/registrations/esports-solo-random-teams', { headers })
-      .then(data => setSoloRandomTeams(Array.isArray(data) ? data : []))
-      .catch(() => setSoloRandomTeams([]));
-
-    fetchJson<OpenMicRegistration[]>('/api/admin/registrations/open-mic', { headers })
-      .then(data => setOpenMic(Array.isArray(data) ? data : []))
-      .catch(() => setOpenMic([]));
-
-    fetchJson<ContactSubmission[]>('/api/admin/registrations/contact', { headers })
-      .then(data => setContacts(Array.isArray(data) ? data : []))
-      .catch(() => setContacts([]));
-  };
 
   useEffect(() => {
     if (!isUnlocked) {
       return;
     }
-    loadRegistrations();
+
+    const headers = { 'X-Admin-Token': getSecretAdminToken() };
+
+    fetchJson<HackathonRegistration[]>('/api/admin/registrations/hackathon', { headers })
+      .then(data => setCodehunt(Array.isArray(data) ? data : []))
+      .catch(() => setCodehunt([]));
+
+    fetchJson<RoboRegistration[]>('/api/admin/registrations/kinetic-showdown', { headers })
+      .then(data => setKinetic(Array.isArray(data) ? data : []))
+      .catch(() => setKinetic([]));
+
+    fetchJson<EsportsRegistration[]>('/api/admin/registrations/esports', { headers })
+      .then(data => setEsports(Array.isArray(data) ? data : []))
+      .catch(() => setEsports([]));
+
+    fetchJson<OpenMicRegistration[]>('/api/admin/registrations/open-mic', { headers })
+      .then(data => setOpenMic(Array.isArray(data) ? data : []))
+      .catch(() => setOpenMic([]));
   }, [isUnlocked]);
 
   const handleUnlock = (e: React.FormEvent) => {
     e.preventDefault();
     const ok = unlockSecretAdmin(password);
     if (!ok) {
-      setResult('Wrong password.');
+      setResult('Wrong password. Use eventname@alphabetcount (all lowercase).');
       return;
     }
     setResult('');
     setPassword('');
     setIsUnlocked(true);
-  };
-
-  const handleCreateSoloRandomTeam = async (game: 'bgmi' | 'valorant') => {
-    setResult('');
-    setSoloActionLoading(game);
-    try {
-      const data = await fetchJson<{ message: string }>('/api/admin/esports-solo/create-random-team', {
-        method: 'POST',
-        headers: { 'X-Admin-Token': getSecretAdminToken() },
-        body: JSON.stringify({ game })
-      });
-      setResult(data.message || `Random ${game.toUpperCase()} squad created.`);
-      loadRegistrations();
-    } catch (err) {
-      setResult(err instanceof Error ? err.message : 'Unable to create random team');
-    } finally {
-      setSoloActionLoading(null);
-    }
   };
 
   if (!isUnlocked) {
@@ -113,7 +71,7 @@ export default function AdminRegistrations() {
           <form className="form-grid" onSubmit={handleUnlock}>
             <input
               type="password"
-              placeholder="Enter password"
+              placeholder="Examples: codehunt@8, openmic@7"
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
@@ -128,16 +86,14 @@ export default function AdminRegistrations() {
 
   return (
     <section className="section">
-      <h2 className="section-title">Registrations Dashboard</h2>
-      <p className="section-subtitle">Segregated event-wise records with payment status and member details.</p>
+      <h2 className="section-title">Management Panel - Event Tables</h2>
+      <p className="section-subtitle">Showing only CodeHunt, Kinetic Showdown, eSports, and Open Mic registrations.</p>
       <div className="admin-links">
         <Link className="btn btn-ghost" to="/secret-admin">Back To Content Panel</Link>
       </div>
 
-      {result && <div className="banner" style={{ marginTop: '18px' }}>{result}</div>}
-
       <div className="card" style={{ marginTop: '22px' }}>
-        <h4>Hackathon Teams</h4>
+        <h4>CodeHunt Teams</h4>
         <div className="table-wrap">
           <table className="admin-table">
             <thead>
@@ -150,12 +106,12 @@ export default function AdminRegistrations() {
               </tr>
             </thead>
             <tbody>
-              {hackathon.length === 0 ? (
+              {codehunt.length === 0 ? (
                 <tr>
                   <td colSpan={5}>No registrations yet.</td>
                 </tr>
               ) : (
-                hackathon.map(item => (
+                codehunt.map(item => (
                   <tr key={item.id}>
                     <td>
                       <strong>{item.teamName}</strong>
@@ -167,45 +123,6 @@ export default function AdminRegistrations() {
                       <p>{item.collegeName}</p>
                     </td>
                     <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>{formatMembersForHackathon(item)}</td>
-                    <td>
-                      <strong>{item.paymentStatus || 'unknown'}</strong>
-                      <p>{item.paymentId || '-'}</p>
-                    </td>
-                    <td>{item.createdAt}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '22px' }}>
-        <h4>Workshop Registrations</h4>
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Workshop</th>
-                <th>Name</th>
-                <th>Phone</th>
-                <th>College</th>
-                <th>Payment</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {workshops.length === 0 ? (
-                <tr>
-                  <td colSpan={6}>No registrations yet.</td>
-                </tr>
-              ) : (
-                workshops.map(item => (
-                  <tr key={item.id}>
-                    <td>{item.workshop}</td>
-                    <td>{item.name}</td>
-                    <td>{item.phone}</td>
-                    <td>{item.collegeName}</td>
                     <td>
                       <strong>{item.paymentStatus || 'unknown'}</strong>
                       <p>{item.paymentId || '-'}</p>
@@ -233,12 +150,12 @@ export default function AdminRegistrations() {
               </tr>
             </thead>
             <tbody>
-              {roboRace.length === 0 ? (
+              {kinetic.length === 0 ? (
                 <tr>
                   <td colSpan={5}>No registrations yet.</td>
                 </tr>
               ) : (
-                roboRace.map(item => (
+                kinetic.map(item => (
                   <tr key={item.id}>
                     <td>
                       <strong>{item.teamName}</strong>
@@ -304,129 +221,6 @@ export default function AdminRegistrations() {
                       <strong>{item.paymentStatus || 'unknown'}</strong>
                       <p>{item.paymentId || '-'}</p>
                     </td>
-                    <td>{item.createdAt}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '22px' }}>
-        <h4>Solo eSports Registrations</h4>
-        <p style={{ opacity: 0.8, marginBottom: '12px' }}>Create random squads from pending solo players. Refund stays applicable for unmatched players.</p>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '16px' }}>
-          <button className="btn btn-primary" type="button" onClick={() => handleCreateSoloRandomTeam('bgmi')} disabled={soloActionLoading !== null}>
-            {soloActionLoading === 'bgmi' ? 'Creating BGMI Team...' : 'Create Random BGMI Team (4)'}
-          </button>
-          <button className="btn btn-primary" type="button" onClick={() => handleCreateSoloRandomTeam('valorant')} disabled={soloActionLoading !== null}>
-            {soloActionLoading === 'valorant' ? 'Creating Valorant Team...' : 'Create Random Valorant Team (5)'}
-          </button>
-        </div>
-
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Player</th>
-                <th>Game</th>
-                <th>Status</th>
-                <th>Payment</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {soloEsports.length === 0 ? (
-                <tr>
-                  <td colSpan={5}>No solo registrations yet.</td>
-                </tr>
-              ) : (
-                soloEsports.map(item => (
-                  <tr key={item.id}>
-                    <td>
-                      <strong>{item.playerName}</strong>
-                      <p>{item.whatsappNumber}</p>
-                      <p>Game ID: {item.gameId}</p>
-                      <p>{item.isCollegeParticipant ? `College: ${item.collegeName || '-'}` : 'Not a college participant'}</p>
-                    </td>
-                    <td>{item.game.toUpperCase()}</td>
-                    <td>
-                      <p>{item.isTeamAssigned ? `Assigned (Team #${item.assignedTeamId || '-'})` : 'Pending random team'}</p>
-                      <p>{item.refundEligible ? 'Refund eligible' : 'Refund not applicable'}</p>
-                    </td>
-                    <td>
-                      <strong>{item.paymentStatus || 'unknown'}</strong>
-                      <p>{item.paymentId || '-'}</p>
-                    </td>
-                    <td>{item.createdAt}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '22px' }}>
-        <h4>Created Solo Random Teams</h4>
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Team</th>
-                <th>Members</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {soloRandomTeams.length === 0 ? (
-                <tr>
-                  <td colSpan={3}>No random teams created yet.</td>
-                </tr>
-              ) : (
-                soloRandomTeams.map(item => (
-                  <tr key={item.id}>
-                    <td>
-                      <strong>{item.teamCode}</strong>
-                      <p>Game: {item.game.toUpperCase()}</p>
-                      <p>{item.memberCount}/{item.teamSize} players</p>
-                    </td>
-                    <td style={{ whiteSpace: 'pre-wrap', minWidth: '360px' }}>
-                      {item.members.map((member, index) => `${index + 1}. ${member.name} | ${member.whatsappNumber} | ${member.gameId || '-'} | ${member.collegeName || '-'} | SoloID: ${member.soloRegistrationId}`).join('\n')}
-                    </td>
-                    <td>{item.createdAt}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginTop: '22px' }}>
-        <h4>Contact Submissions</h4>
-        <div className="table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Issue</th>
-                <th>Created</th>
-              </tr>
-            </thead>
-            <tbody>
-              {contacts.length === 0 ? (
-                <tr>
-                  <td colSpan={4}>No contact submissions yet.</td>
-                </tr>
-              ) : (
-                contacts.map(item => (
-                  <tr key={item.id}>
-                    <td>{item.email}</td>
-                    <td>{item.phone}</td>
-                    <td style={{ whiteSpace: 'pre-wrap', minWidth: '280px' }}>{item.issue}</td>
                     <td>{item.createdAt}</td>
                   </tr>
                 ))
