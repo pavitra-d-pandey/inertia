@@ -7,10 +7,10 @@ import { EsportsRegistration, HackathonRegistration, OpenMicRegistration, RoboRe
 type TableKey = 'codehunt' | 'kinetic' | 'esports' | 'openMic';
 
 const TABLE_PASSWORDS: Record<TableKey, string> = {
-  codehunt: 'ch_table_2026',
-  kinetic: 'ks_table_2026',
-  esports: 'es_table_2026',
-  openMic: 'om_table_2026'
+  codehunt: 'codehunt@09',
+  kinetic: 'kineticshowdown@15',
+  esports: 'esports@19',
+  openMic: 'openmic@07'
 };
 
 function formatMembersForHackathon(item: HackathonRegistration) {
