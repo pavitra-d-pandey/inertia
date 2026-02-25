@@ -53,6 +53,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		api.POST("/robo-race/register", h.registerKineticShowdown)
 		api.POST("/kinetic-showdown/register", h.registerKineticShowdown)
 		api.POST("/hackathon/register", h.registerHackathon)
+		api.POST("/hackathon/problem-statement/confirm", h.confirmHackathonProblemStatement)
 		api.POST("/hackathon/id-card/request", h.requestHackathonIDCard)
 		api.POST("/hackathon/id-card/verify", h.verifyHackathonIDCard)
 		api.POST("/hackathon/id-card/download", h.downloadHackathonIDCard)
@@ -81,6 +82,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.GET("/registrations/robo-race", h.getRoboRegistrations)
 		admin.GET("/registrations/kinetic-showdown", h.getRoboRegistrations)
 		admin.GET("/registrations/hackathon", h.getHackathonRegistrations)
+		admin.GET("/hackathon/problem-statements", h.getHackathonProblemStatements)
 		admin.GET("/hackathon/id-card/requests", h.getHackathonIDCardRequests)
 		admin.POST("/hackathon/id-card/generate-code", h.generateHackathonIDCardCode)
 		admin.GET("/registrations/esports", h.getEsportsRegistrations)
@@ -466,6 +468,106 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Hackathon registration saved"})
 }
 
+func (h *Handler) confirmHackathonProblemStatement(c *gin.Context) {
+	var req struct {
+		TeamID    string `json:"teamId"`
+		ThemeSlug string `json:"themeSlug"`
+		ThemeName string `json:"themeName"`
+		Domain    string `json:"domain"`
+		Title     string `json:"title"`
+		Summary   string `json:"summary"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	teamIDInput := strings.TrimSpace(req.TeamID)
+	teamIDValue, err := parseHackathonTeamID(teamIDInput)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid team id format. Use CH-<id>"})
+		return
+	}
+
+	domain := strings.TrimSpace(req.Domain)
+	if domain != "fullstack" && domain != "ai_ml" && domain != "cybersecurity" && domain != "blockchain" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid domain"})
+		return
+	}
+
+	title := strings.TrimSpace(req.Title)
+	if title == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "problem statement title is required"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	registration, err := h.findHackathonRegistrationByID(ctx, teamIDValue)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "team not found for provided team id"})
+		return
+	}
+
+	teamIDCanonical := fmt.Sprintf("CH-%d", registration.ID)
+	now := time.Now()
+	updateFields := bson.M{
+		"registrationId": registration.ID,
+		"teamId":         teamIDCanonical,
+		"teamName":       registration.TeamName,
+		"leaderName":     registration.ContactName,
+		"themeSlug":      strings.TrimSpace(req.ThemeSlug),
+		"themeName":      strings.TrimSpace(req.ThemeName),
+		"domain":         domain,
+		"title":          title,
+		"summary":        strings.TrimSpace(req.Summary),
+		"confirmedAt":    now,
+		"updatedAt":      now,
+	}
+
+	var existing struct {
+		ID int64 `bson:"id"`
+	}
+	findErr := h.DB.Collection("hackathon_problem_statement_choices").FindOne(
+		ctx,
+		bson.M{"registrationId": registration.ID},
+	).Decode(&existing)
+
+	if findErr == mongo.ErrNoDocuments {
+		id, idErr := h.nextID(ctx, "hackathon_problem_statement_choices")
+		if idErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save selection"})
+			return
+		}
+		updateFields["id"] = id
+		_, err = h.DB.Collection("hackathon_problem_statement_choices").InsertOne(ctx, updateFields)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save selection"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Problem statement confirmed and saved."})
+		return
+	}
+
+	if findErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save selection"})
+		return
+	}
+
+	_, err = h.DB.Collection("hackathon_problem_statement_choices").UpdateOne(
+		ctx,
+		bson.M{"id": existing.ID},
+		bson.M{"$set": updateFields},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save selection"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Problem statement confirmed and updated."})
+}
+
 func (h *Handler) requestHackathonIDCard(c *gin.Context) {
 	var req struct {
 		LeaderPhone string `json:"leaderPhone"`
@@ -664,6 +766,49 @@ func (h *Handler) getHackathonIDCardRequests(c *gin.Context) {
 			"leaderName":     registration.ContactName,
 			"leaderPhone":    registration.ContactPhone,
 			"participants":   participants,
+		})
+	}
+
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) getHackathonProblemStatements(c *gin.Context) {
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("hackathon_problem_statement_choices").Find(
+		ctx,
+		bson.D{},
+		options.Find().SetSort(bson.D{{Key: "confirmedAt", Value: -1}}),
+	)
+	if err != nil {
+		c.JSON(http.StatusOK, []gin.H{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	items := make([]gin.H, 0)
+	for cursor.Next(ctx) {
+		var row struct {
+			TeamID      string    `bson:"teamId"`
+			TeamName    string    `bson:"teamName"`
+			LeaderName  string    `bson:"leaderName"`
+			ThemeName   string    `bson:"themeName"`
+			Domain      string    `bson:"domain"`
+			Title       string    `bson:"title"`
+			ConfirmedAt time.Time `bson:"confirmedAt"`
+		}
+		if err := cursor.Decode(&row); err != nil {
+			continue
+		}
+		items = append(items, gin.H{
+			"teamId":      row.TeamID,
+			"teamName":    row.TeamName,
+			"leaderName":  row.LeaderName,
+			"themeName":   row.ThemeName,
+			"domain":      row.Domain,
+			"title":       row.Title,
+			"confirmedAt": row.ConfirmedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 
@@ -2142,6 +2287,25 @@ func (h *Handler) findHackathonRegistrationByPhone(ctx context.Context, normaliz
 		}
 	}
 	return hackathonRegistrationDoc{}, mongo.ErrNoDocuments
+}
+
+func parseHackathonTeamID(input string) (int64, error) {
+	value := strings.ToUpper(strings.TrimSpace(input))
+	value = strings.TrimPrefix(value, "CH-")
+	value = strings.TrimPrefix(value, "CH")
+	if value == "" {
+		return 0, fmt.Errorf("invalid team id")
+	}
+	for _, r := range value {
+		if r < '0' || r > '9' {
+			return 0, fmt.Errorf("invalid team id")
+		}
+	}
+	id, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || id < 1 {
+		return 0, fmt.Errorf("invalid team id")
+	}
+	return id, nil
 }
 
 func (h *Handler) resolveHackathonIDCard(ctx context.Context, phone, code string) (hackathonIDCardData, error) {

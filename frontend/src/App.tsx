@@ -19,6 +19,7 @@ import Admin from './components/pages/Admin';
 import AdminRegistrations from './components/pages/AdminRegistrations';
 import AdminContentManager from './components/pages/AdminContentManager';
 import HackathonManager from './components/pages/HackathonManager';
+import ProblemStatement from './components/pages/ProblemStatement';
 import NotFound from './components/pages/NotFound';
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/register" element={<Register />} />
           <Route path="/hackathon" element={<Hackathon />} />
+          <Route path="/problemstatement" element={<ProblemStatement />} />
           <Route path="/workshops" element={<Workshops />} />
           <Route path="/kinetic-showdown" element={<RoboRace />} />
           <Route path="/robo-race" element={<RoboRace />} />

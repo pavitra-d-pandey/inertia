@@ -130,6 +130,16 @@ export type HackathonIDCard = {
   issuedAt: string;
 };
 
+export type HackathonProblemStatementChoice = {
+  teamId: string;
+  teamName: string;
+  leaderName: string;
+  themeName: string;
+  domain: string;
+  title: string;
+  confirmedAt: string;
+};
+
 export type EsportsRegistration = {
   id: number;
   teamName: string;
