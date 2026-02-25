@@ -461,6 +461,12 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 }
 
 func (h *Handler) registerEsports(c *gin.Context) {
+	registrationsClosed := true
+	if registrationsClosed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "eSports registrations are closed."})
+		return
+	}
+
 	var req struct {
 		TeamName             string `json:"teamName"`
 		Game                 string `json:"game"`
@@ -563,6 +569,12 @@ func (h *Handler) registerEsports(c *gin.Context) {
 }
 
 func (h *Handler) registerSoloEsports(c *gin.Context) {
+	registrationsClosed := true
+	if registrationsClosed {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "eSports registrations are closed."})
+		return
+	}
+
 	var req struct {
 		Game                 string `json:"game"`
 		PlayerName           string `json:"playerName"`
@@ -745,14 +757,16 @@ func (h *Handler) createRazorpayOrder(c *gin.Context) {
 	case "kinetic-showdown", "robo-race":
 		amount = 30000
 	case "esports-valorant":
-		amount = 30000
+		c.JSON(http.StatusBadRequest, gin.H{"error": "eSports registrations are closed."})
+		return
 	case "esports-bgmi":
-		c.JSON(http.StatusBadRequest, gin.H{"error": "BGMI seats are full. Registrations are closed."})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "eSports registrations are closed."})
 		return
 	case "esports-solo-valorant":
-		amount = 6000
+		c.JSON(http.StatusBadRequest, gin.H{"error": "eSports registrations are closed."})
+		return
 	case "esports-solo-bgmi":
-		c.JSON(http.StatusBadRequest, gin.H{"error": "BGMI seats are full. Registrations are closed."})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "eSports registrations are closed."})
 		return
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event"})

@@ -30,9 +30,9 @@ export default function Register() {
         </div>
         <div className="card">
           <h4>eSports</h4>
-          <p>Valorant (INR 300 per team) or BGMI (INR 200 per team).</p>
-          <Link className="btn btn-primary" to="/esports">
-            Register eSports
+          <p>Registrations are closed.</p>
+          <Link className="btn btn-ghost" to="/esports">
+            View Details
           </Link>
         </div>
         <div className="card">
