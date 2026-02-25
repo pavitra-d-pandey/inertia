@@ -111,12 +111,21 @@ export type HackathonIDCardParticipant = {
 export type HackathonIDCardRequest = {
   requestId: number;
   registrationId: number;
+  teamId: string;
   requestedAt: string;
   teamName: string;
   collegeName: string;
   leaderName: string;
   leaderPhone: string;
   participants: HackathonIDCardParticipant[];
+};
+
+export type HackathonIssuedIDCard = {
+  teamId: string;
+  teamName: string;
+  leaderName: string;
+  code: string;
+  issuedAt: string;
 };
 
 export type HackathonIDCard = {

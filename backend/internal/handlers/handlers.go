@@ -14,6 +14,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -85,6 +86,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.GET("/registrations/hackathon", h.getHackathonRegistrations)
 		admin.GET("/hackathon/problem-statements", h.getHackathonProblemStatements)
 		admin.GET("/hackathon/id-card/requests", h.getHackathonIDCardRequests)
+		admin.GET("/hackathon/id-card/issued", h.getHackathonIssuedIDCardRequests)
 		admin.POST("/hackathon/id-card/generate-code", h.generateHackathonIDCardCode)
 		admin.GET("/registrations/esports", h.getEsportsRegistrations)
 		admin.GET("/registrations/esports-solo", h.getSoloEsportsRegistrations)
@@ -484,10 +486,9 @@ func (h *Handler) confirmHackathonProblemStatement(c *gin.Context) {
 		return
 	}
 
-	teamIDInput := strings.TrimSpace(req.TeamID)
-	teamIDValue, err := parseHackathonTeamID(teamIDInput)
+	registration, err := h.findHackathonRegistrationByInputTeamID(c.Request.Context(), req.TeamID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid team id format. Use CH-<id>"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "team not found for provided team id"})
 		return
 	}
 
@@ -505,8 +506,7 @@ func (h *Handler) confirmHackathonProblemStatement(c *gin.Context) {
 
 	ctx, cancel := h.ctx()
 	defer cancel()
-
-	registration, err := h.findHackathonRegistrationByID(ctx, teamIDValue)
+	registration, err = h.findHackathonRegistrationByID(ctx, registration.ID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "team not found for provided team id"})
 		return
@@ -592,16 +592,15 @@ func (h *Handler) getHackathonProblemStatementTeam(c *gin.Context) {
 		return
 	}
 
-	teamIDValue, err := parseHackathonTeamID(req.TeamID)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid team id format. Use CH-<id>"})
-		return
-	}
-
 	ctx, cancel := h.ctx()
 	defer cancel()
 
-	registration, err := h.findHackathonRegistrationByID(ctx, teamIDValue)
+	registration, err := h.findHackathonRegistrationByInputTeamID(ctx, req.TeamID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "team not found for provided team id"})
+		return
+	}
+	registration, err = h.findHackathonRegistrationByID(ctx, registration.ID)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "team not found for provided team id"})
 		return
@@ -674,7 +673,9 @@ func (h *Handler) requestHackathonIDCard(c *gin.Context) {
 
 	now := time.Now()
 	var existing struct {
-		ID int64 `bson:"id"`
+		ID            int64  `bson:"id"`
+		Status        string `bson:"status"`
+		GeneratedCode string `bson:"generatedCode"`
 	}
 	findErr := h.DB.Collection("hackathon_id_card_requests").FindOne(
 		ctx,
@@ -710,6 +711,24 @@ func (h *Handler) requestHackathonIDCard(c *gin.Context) {
 
 	if findErr != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "request save failed"})
+		return
+	}
+
+	if strings.TrimSpace(existing.Status) == "issued" {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":   "e-ID request already approved for this team. Leader cannot request again.",
+			"teamId":  registration.TeamID,
+			"code":    strings.TrimSpace(existing.GeneratedCode),
+			"message": "Team approval is already completed and locked.",
+		})
+		return
+	}
+	if strings.TrimSpace(existing.Status) == "requested" {
+		c.JSON(http.StatusConflict, gin.H{
+			"error":   "e-ID request is already pending approval.",
+			"teamId":  registration.TeamID,
+			"message": "Please wait for manager approval.",
+		})
 		return
 	}
 
@@ -839,6 +858,7 @@ func (h *Handler) getHackathonIDCardRequests(c *gin.Context) {
 		items = append(items, gin.H{
 			"requestId":      reqDoc.ID,
 			"registrationId": registration.ID,
+			"teamId":         registration.TeamID,
 			"requestedAt":    reqDoc.RequestedAt.Format("2006-01-02 15:04:05"),
 			"teamName":       registration.TeamName,
 			"collegeName":    registration.CollegeName,
@@ -888,6 +908,48 @@ func (h *Handler) getHackathonProblemStatements(c *gin.Context) {
 			"domain":      row.Domain,
 			"title":       row.Title,
 			"confirmedAt": row.ConfirmedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) getHackathonIssuedIDCardRequests(c *gin.Context) {
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("hackathon_id_card_requests").Find(
+		ctx,
+		bson.M{"status": "issued"},
+		options.Find().SetSort(bson.D{{Key: "issuedAt", Value: -1}}),
+	)
+	if err != nil {
+		c.JSON(http.StatusOK, []gin.H{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	items := make([]gin.H, 0)
+	for cursor.Next(ctx) {
+		var reqDoc struct {
+			RegistrationID int64     `bson:"registrationId"`
+			GeneratedCode  string    `bson:"generatedCode"`
+			IssuedAt       time.Time `bson:"issuedAt"`
+		}
+		if err := cursor.Decode(&reqDoc); err != nil {
+			continue
+		}
+		registration, findErr := h.findHackathonRegistrationByID(ctx, reqDoc.RegistrationID)
+		if findErr != nil {
+			continue
+		}
+
+		items = append(items, gin.H{
+			"teamId":     registration.TeamID,
+			"teamName":   registration.TeamName,
+			"leaderName": registration.ContactName,
+			"code":       reqDoc.GeneratedCode,
+			"issuedAt":   reqDoc.IssuedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
 
@@ -2383,6 +2445,56 @@ func (h *Handler) findHackathonRegistrationByPhone(ctx context.Context, normaliz
 		}
 	}
 	return hackathonRegistrationDoc{}, mongo.ErrNoDocuments
+}
+
+func (h *Handler) findHackathonRegistrationByInputTeamID(ctx context.Context, input string) (hackathonRegistrationDoc, error) {
+	normalized := strings.ToUpper(strings.TrimSpace(input))
+	if normalized != "" {
+		var byTeamID hackathonRegistrationDoc
+		err := h.DB.Collection("hackathon_registrations").FindOne(ctx, bson.M{"teamId": normalized}).Decode(&byTeamID)
+		if err == nil {
+			if strings.TrimSpace(byTeamID.TeamID) == "" {
+				byTeamID.TeamID = canonicalHackathonTeamID(byTeamID.ID)
+				_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
+					ctx,
+					bson.M{"id": byTeamID.ID},
+					bson.M{"$set": bson.M{"teamId": byTeamID.TeamID}},
+				)
+			}
+			return byTeamID, nil
+		}
+		if err != mongo.ErrNoDocuments {
+			return hackathonRegistrationDoc{}, err
+		}
+
+		regexPattern := "^" + regexp.QuoteMeta(normalized) + "$"
+		err = h.DB.Collection("hackathon_registrations").FindOne(
+			ctx,
+			bson.M{"teamId": bson.M{"$regex": regexPattern, "$options": "i"}},
+		).Decode(&byTeamID)
+		if err == nil {
+			if strings.TrimSpace(byTeamID.TeamID) == "" {
+				byTeamID.TeamID = canonicalHackathonTeamID(byTeamID.ID)
+			} else {
+				byTeamID.TeamID = strings.ToUpper(strings.TrimSpace(byTeamID.TeamID))
+			}
+			_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
+				ctx,
+				bson.M{"id": byTeamID.ID},
+				bson.M{"$set": bson.M{"teamId": byTeamID.TeamID}},
+			)
+			return byTeamID, nil
+		}
+		if err != mongo.ErrNoDocuments {
+			return hackathonRegistrationDoc{}, err
+		}
+	}
+
+	id, err := parseHackathonTeamID(normalized)
+	if err != nil {
+		return hackathonRegistrationDoc{}, err
+	}
+	return h.findHackathonRegistrationByID(ctx, id)
 }
 
 func parseHackathonTeamID(input string) (int64, error) {

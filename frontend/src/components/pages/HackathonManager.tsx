@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { fetchJson } from '../../lib/api';
 import { getSecretAdminToken, isSecretAdminUnlocked, unlockSecretAdmin } from '../../lib/adminAuth';
-import { HackathonIDCardRequest, HackathonProblemStatementChoice } from '../../lib/types';
+import { HackathonIDCardRequest, HackathonIssuedIDCard, HackathonProblemStatementChoice } from '../../lib/types';
 
 type GenerateCodeResponse = {
   message: string;
@@ -30,6 +30,7 @@ export default function HackathonManager() {
   const [selected, setSelected] = useState<Record<number, Record<string, boolean>>>({});
   const [processingRequestId, setProcessingRequestId] = useState<number | null>(null);
   const [issuedLogs, setIssuedLogs] = useState<IssuedCodeLog[]>([]);
+  const [issuedTeams, setIssuedTeams] = useState<HackathonIssuedIDCard[]>([]);
   const [problemChoices, setProblemChoices] = useState<HackathonProblemStatementChoice[]>([]);
 
   const loadRequests = async () => {
@@ -45,10 +46,15 @@ export default function HackathonManager() {
       const choices = await fetchJson<HackathonProblemStatementChoice[]>('/api/admin/hackathon/problem-statements', {
         headers: { 'X-Admin-Token': getSecretAdminToken() }
       });
+      const issued = await fetchJson<HackathonIssuedIDCard[]>('/api/admin/hackathon/id-card/issued', {
+        headers: { 'X-Admin-Token': getSecretAdminToken() }
+      });
       const safe = Array.isArray(data) ? data : [];
       const safeChoices = Array.isArray(choices) ? choices : [];
+      const safeIssued = Array.isArray(issued) ? issued : [];
       setRequests(safe);
       setProblemChoices(safeChoices);
+      setIssuedTeams(safeIssued);
       setSelected(prev => {
         const next: Record<number, Record<string, boolean>> = {};
         for (const req of safe) {
@@ -59,6 +65,7 @@ export default function HackathonManager() {
     } catch (err) {
       setRequests([]);
       setProblemChoices([]);
+      setIssuedTeams([]);
       setResult(err instanceof Error ? err.message : 'Unable to load requests');
     } finally {
       setLoading(false);
@@ -169,6 +176,7 @@ export default function HackathonManager() {
         {requests.map(request => (
           <div className="card" key={request.requestId}>
             <h4>{request.teamName}</h4>
+            <p><strong>Team ID:</strong> {request.teamId}</p>
             <p><strong>College:</strong> {request.collegeName}</p>
             <p><strong>Leader:</strong> {request.leaderName} ({request.leaderPhone})</p>
             <p><strong>Requested At:</strong> {request.requestedAt}</p>
@@ -266,6 +274,40 @@ export default function HackathonManager() {
                     <td>{item.domain}</td>
                     <td>{item.title}</td>
                     <td>{item.confirmedAt}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: '24px' }}>
+        <h4>Approved e-ID Teams (Fixed Team IDs)</h4>
+        <div className="table-wrap">
+          <table className="admin-table" style={{ minWidth: '760px' }}>
+            <thead>
+              <tr>
+                <th>Team ID</th>
+                <th>Team Name</th>
+                <th>Leader</th>
+                <th>Code</th>
+                <th>Approved At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {issuedTeams.length === 0 ? (
+                <tr>
+                  <td colSpan={5}>No team has been approved for e-ID yet.</td>
+                </tr>
+              ) : (
+                issuedTeams.map(item => (
+                  <tr key={`${item.teamId}-${item.code}-${item.issuedAt}`}>
+                    <td><strong>{item.teamId}</strong></td>
+                    <td>{item.teamName}</td>
+                    <td>{item.leaderName}</td>
+                    <td>{item.code}</td>
+                    <td>{item.issuedAt}</td>
                   </tr>
                 ))
               )}
