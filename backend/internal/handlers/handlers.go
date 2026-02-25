@@ -503,6 +503,10 @@ func (h *Handler) registerEsports(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid game"})
 		return
 	}
+	if game == "bgmi" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "BGMI seats are full. Registrations are closed."})
+		return
+	}
 	if (game == "valorant" && memberCount != 5) || (game == "bgmi" && memberCount != 4) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid team size for selected game"})
 		return
@@ -578,6 +582,10 @@ func (h *Handler) registerSoloEsports(c *gin.Context) {
 	game := strings.ToLower(strings.TrimSpace(req.Game))
 	if game != "valorant" && game != "bgmi" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid game"})
+		return
+	}
+	if game == "bgmi" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "BGMI seats are full. Registrations are closed."})
 		return
 	}
 	if strings.TrimSpace(req.PlayerName) == "" || strings.TrimSpace(req.WhatsAppNumber) == "" || strings.TrimSpace(req.GameID) == "" {
@@ -739,11 +747,13 @@ func (h *Handler) createRazorpayOrder(c *gin.Context) {
 	case "esports-valorant":
 		amount = 30000
 	case "esports-bgmi":
-		amount = 20000
+		c.JSON(http.StatusBadRequest, gin.H{"error": "BGMI seats are full. Registrations are closed."})
+		return
 	case "esports-solo-valorant":
 		amount = 6000
 	case "esports-solo-bgmi":
-		amount = 5000
+		c.JSON(http.StatusBadRequest, gin.H{"error": "BGMI seats are full. Registrations are closed."})
+		return
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid event"})
 		return

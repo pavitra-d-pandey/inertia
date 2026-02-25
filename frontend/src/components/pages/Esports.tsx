@@ -47,6 +47,7 @@ export default function Esports() {
   const [members, setMembers] = useState<EsportsMember[]>(createMembers(5));
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState('');
+  const isBgmiFull = game === 'bgmi';
 
   const requiredCount = useMemo(() => (game === 'valorant' ? 5 : 4), [game]);
 
@@ -76,6 +77,10 @@ export default function Esports() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResult('');
+    if (isBgmiFull) {
+      setResult('BGMI seats are full. Registrations are closed.');
+      return;
+    }
     setSubmitting(true);
     try {
       const prefill = mode === 'solo'
@@ -163,8 +168,9 @@ export default function Esports() {
         <form className="form-grid" onSubmit={handleSubmit}>
           <select value={game} onChange={e => onGameChange(e.target.value as 'valorant' | 'bgmi')}>
             <option value="valorant">Valorant (5 players)</option>
-            <option value="bgmi">BGMI (4 players)</option>
+            <option value="bgmi">BGMI (Seats Full)</option>
           </select>
+          {isBgmiFull && <div className="banner">BGMI seats are full. Registrations are closed.</div>}
 
           <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
             <button
@@ -243,7 +249,7 @@ export default function Esports() {
             </>
           )}
 
-          <button className="btn btn-primary" type="submit" disabled={submitting}>
+          <button className="btn btn-primary" type="submit" disabled={submitting || isBgmiFull}>
             {submitting ? 'Processing Payment...' : `Pay ${feeLabel} & Register`}
           </button>
         </form>
