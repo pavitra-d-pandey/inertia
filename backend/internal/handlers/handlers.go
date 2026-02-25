@@ -53,6 +53,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		api.POST("/robo-race/register", h.registerKineticShowdown)
 		api.POST("/kinetic-showdown/register", h.registerKineticShowdown)
 		api.POST("/hackathon/register", h.registerHackathon)
+		api.POST("/hackathon/problem-statement/team", h.getHackathonProblemStatementTeam)
 		api.POST("/hackathon/problem-statement/confirm", h.confirmHackathonProblemStatement)
 		api.POST("/hackathon/id-card/request", h.requestHackathonIDCard)
 		api.POST("/hackathon/id-card/verify", h.verifyHackathonIDCard)
@@ -527,7 +528,13 @@ func (h *Handler) confirmHackathonProblemStatement(c *gin.Context) {
 	}
 
 	var existing struct {
-		ID int64 `bson:"id"`
+		ID          int64     `bson:"id"`
+		ThemeSlug   string    `bson:"themeSlug"`
+		ThemeName   string    `bson:"themeName"`
+		Domain      string    `bson:"domain"`
+		Title       string    `bson:"title"`
+		Summary     string    `bson:"summary"`
+		ConfirmedAt time.Time `bson:"confirmedAt"`
 	}
 	findErr := h.DB.Collection("hackathon_problem_statement_choices").FindOne(
 		ctx,
@@ -555,17 +562,85 @@ func (h *Handler) confirmHackathonProblemStatement(c *gin.Context) {
 		return
 	}
 
-	_, err = h.DB.Collection("hackathon_problem_statement_choices").UpdateOne(
-		ctx,
-		bson.M{"id": existing.ID},
-		bson.M{"$set": updateFields},
-	)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not save selection"})
+	c.JSON(http.StatusConflict, gin.H{
+		"error":  "problem statement is already locked for this team",
+		"locked": true,
+		"choice": gin.H{
+			"teamId":      teamIDCanonical,
+			"teamName":    registration.TeamName,
+			"leaderName":  registration.ContactName,
+			"themeSlug":   existing.ThemeSlug,
+			"themeName":   existing.ThemeName,
+			"domain":      existing.Domain,
+			"title":       existing.Title,
+			"summary":     existing.Summary,
+			"confirmedAt": existing.ConfirmedAt.Format("2006-01-02 15:04:05"),
+		},
+	})
+}
+
+func (h *Handler) getHackathonProblemStatementTeam(c *gin.Context) {
+	var req struct {
+		TeamID string `json:"teamId"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Problem statement confirmed and updated."})
+	teamIDValue, err := parseHackathonTeamID(req.TeamID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid team id format. Use CH-<id>"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	registration, err := h.findHackathonRegistrationByID(ctx, teamIDValue)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "team not found for provided team id"})
+		return
+	}
+
+	response := gin.H{
+		"teamId":     fmt.Sprintf("CH-%d", registration.ID),
+		"teamName":   registration.TeamName,
+		"leaderName": registration.ContactName,
+		"locked":     false,
+	}
+
+	var choice struct {
+		ThemeSlug   string    `bson:"themeSlug"`
+		ThemeName   string    `bson:"themeName"`
+		Domain      string    `bson:"domain"`
+		Title       string    `bson:"title"`
+		Summary     string    `bson:"summary"`
+		ConfirmedAt time.Time `bson:"confirmedAt"`
+	}
+	err = h.DB.Collection("hackathon_problem_statement_choices").FindOne(
+		ctx,
+		bson.M{"registrationId": registration.ID},
+	).Decode(&choice)
+	if err == nil {
+		response["locked"] = true
+		response["choice"] = gin.H{
+			"teamId":      fmt.Sprintf("CH-%d", registration.ID),
+			"teamName":    registration.TeamName,
+			"leaderName":  registration.ContactName,
+			"themeSlug":   choice.ThemeSlug,
+			"themeName":   choice.ThemeName,
+			"domain":      choice.Domain,
+			"title":       choice.Title,
+			"summary":     choice.Summary,
+			"confirmedAt": choice.ConfirmedAt.Format("2006-01-02 15:04:05"),
+		}
+	} else if err != mongo.ErrNoDocuments {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not fetch team problem statement status"})
+		return
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func (h *Handler) requestHackathonIDCard(c *gin.Context) {

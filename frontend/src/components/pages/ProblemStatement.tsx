@@ -38,6 +38,18 @@ type SessionState = {
   confirmedKey: string;
 };
 
+type LockedChoice = {
+  teamId: string;
+  teamName: string;
+  leaderName: string;
+  themeSlug: string;
+  themeName: string;
+  domain: string;
+  title: string;
+  summary: string;
+  confirmedAt: string;
+};
+
 const DOMAINS: Domain[] = ['fullstack', 'ai_ml', 'cybersecurity', 'blockchain'];
 
 const THEMES: Theme[] = [
@@ -749,8 +761,12 @@ export default function ProblemStatement() {
   const [teamIdInput, setTeamIdInput] = useState('');
   const [teamId, setTeamId] = useState('');
   const [state, setState] = useState<SessionState | null>(null);
+  const [teamMeta, setTeamMeta] = useState<{ teamId: string; teamName: string; leaderName: string } | null>(null);
+  const [lockedChoice, setLockedChoice] = useState<LockedChoice | null>(null);
   const [result, setResult] = useState('');
   const [confirming, setConfirming] = useState(false);
+  const [unlocking, setUnlocking] = useState(false);
+  const [viewingKey, setViewingKey] = useState('');
 
   const currentTheme = useMemo(() => {
     if (!state) {
@@ -776,17 +792,38 @@ export default function ProblemStatement() {
       .map(domain => currentTheme.statements[domain]);
   }, [state, currentTheme]);
 
-  const enterTeam = (e: React.FormEvent) => {
+  const enterTeam = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = teamIdInput.trim().toUpperCase();
     if (!trimmed) {
       setResult('Team ID is required.');
       return;
     }
-    const loaded = loadState(trimmed);
-    setTeamId(trimmed);
-    setState(loaded);
+
+    setUnlocking(true);
     setResult('');
+    try {
+      const team = await fetchJson<{ teamId: string; teamName: string; leaderName: string; locked: boolean; choice?: LockedChoice }>('/api/hackathon/problem-statement/team', {
+        method: 'POST',
+        body: JSON.stringify({ teamId: trimmed })
+      });
+
+      const canonicalTeamID = team.teamId.trim().toUpperCase();
+      const loaded = loadState(canonicalTeamID);
+      setTeamMeta({ teamId: team.teamId, teamName: team.teamName, leaderName: team.leaderName });
+      setTeamId(canonicalTeamID);
+      setLockedChoice(team.locked && team.choice ? team.choice : null);
+      setState(team.locked ? null : loaded);
+      setViewingKey('');
+      setResult('');
+    } catch (err) {
+      setTeamMeta(null);
+      setState(null);
+      setLockedChoice(null);
+      setResult(err instanceof Error ? err.message : 'Unable to validate team ID');
+    } finally {
+      setUnlocking(false);
+    }
   };
 
   const update = (updater: (prev: SessionState) => SessionState) => {
@@ -884,20 +921,75 @@ export default function ProblemStatement() {
         })
       });
       update(prev => ({ ...prev, confirmedKey: prev.selectedKey }));
+      setLockedChoice({
+        teamId: teamMeta?.teamId || teamId,
+        teamName: teamMeta?.teamName || '',
+        leaderName: teamMeta?.leaderName || '',
+        themeSlug: currentTheme.slug,
+        themeName: currentTheme.name,
+        domain: selectedStatement.domain,
+        title: selectedStatement.title,
+        summary: selectedStatement.summary,
+        confirmedAt: new Date().toLocaleString()
+      });
+      setState(null);
       setResult(res.message || 'Problem statement confirmed successfully.');
     } catch (err) {
-      setResult(err instanceof Error ? err.message : 'Unable to confirm problem statement');
+      try {
+        const latest = await fetchJson<{ teamId: string; teamName: string; leaderName: string; locked: boolean; choice?: LockedChoice }>('/api/hackathon/problem-statement/team', {
+          method: 'POST',
+          body: JSON.stringify({ teamId })
+        });
+        if (latest.locked && latest.choice) {
+          setTeamMeta({ teamId: latest.teamId, teamName: latest.teamName, leaderName: latest.leaderName });
+          setLockedChoice(latest.choice);
+          setState(null);
+          setResult('Problem statement is already locked for this team.');
+        } else {
+          setResult(err instanceof Error ? err.message : 'Unable to confirm problem statement');
+        }
+      } catch {
+        setResult(err instanceof Error ? err.message : 'Unable to confirm problem statement');
+      }
     } finally {
       setConfirming(false);
     }
   };
 
+  const activeViewedStatement = useMemo(() => {
+    if (!currentTheme || !viewingKey) {
+      return null;
+    }
+    return visibleStatements.find(item => `${currentTheme.slug}:${item.domain}` === viewingKey) || null;
+  }, [currentTheme, viewingKey, visibleStatements]);
+
+  const lockedTheme = useMemo(() => {
+    if (!lockedChoice) {
+      return null;
+    }
+    return THEMES.find(item => item.slug === lockedChoice.themeSlug || item.name === lockedChoice.themeName) || null;
+  }, [lockedChoice]);
+
+  const lockedStatement = useMemo(() => {
+    if (!lockedChoice) {
+      return null;
+    }
+    if (lockedChoice.domain !== 'fullstack' && lockedChoice.domain !== 'ai_ml' && lockedChoice.domain !== 'cybersecurity' && lockedChoice.domain !== 'blockchain') {
+      return null;
+    }
+    return {
+      domain: lockedChoice.domain as Domain,
+      title: lockedChoice.title,
+      summary: lockedChoice.summary
+    };
+  }, [lockedChoice]);
+
   return (
     <section className="section">
       <h2 className="section-title">Problem Statement</h2>
-      <p className="section-subtitle">Enter Team ID to unlock your assigned theme and select the final statement.</p>
+      <p className="section-subtitle">Enter valid Team ID to unlock assigned theme and select final statement.</p>
 
-      {!state && (
+      {!teamMeta && (
         <div className="card" style={{ maxWidth: '620px', marginTop: '20px' }}>
           <h4>Enter Team ID</h4>
           <form className="form-grid" onSubmit={enterTeam}>
@@ -907,19 +999,110 @@ export default function ProblemStatement() {
               onChange={e => setTeamIdInput(e.target.value)}
               required
             />
-            <button className="btn btn-primary" type="submit">Unlock Theme</button>
+            <button className="btn btn-primary" type="submit" disabled={unlocking}>
+              {unlocking ? 'Validating...' : 'Unlock Theme'}
+            </button>
           </form>
           {result && <div className="banner" style={{ marginTop: '16px' }}>{result}</div>}
         </div>
       )}
 
+      {teamMeta && lockedChoice && lockedTheme && lockedStatement && (
+        <>
+          <div className="card" style={{ marginTop: '22px' }}>
+            <h4>Problem Statement Locked</h4>
+            <p><strong>Team ID:</strong> {teamMeta.teamId}</p>
+            <p><strong>Team Name:</strong> {teamMeta.teamName}</p>
+            <p><strong>Leader:</strong> {teamMeta.leaderName}</p>
+            <p><strong>Theme:</strong> {lockedChoice.themeName}</p>
+            <p><strong>Confirmed At:</strong> {lockedChoice.confirmedAt}</p>
+          </div>
+
+          <div className="card" style={{ marginTop: '22px' }}>
+            <h4>{DOMAIN_LABELS[lockedStatement.domain]}</h4>
+            <p><strong>{lockedStatement.title}</strong></p>
+            <p>{lockedStatement.summary}</p>
+            {(() => {
+              const details = getStatementDetails(lockedTheme, lockedStatement);
+              return (
+                <div className="problem-details">
+                  <p><strong>Background:</strong> {details.background}</p>
+                  <p><strong>Problem Statement:</strong> {details.problemStatement}</p>
+                  <p><strong>Functional Requirements:</strong></p>
+                  <ul>
+                    {details.functionalRequirements.map(item => <li key={item}>{item}</li>)}
+                  </ul>
+                  <p><strong>Technical Expectations & Constraints:</strong></p>
+                  <ul>
+                    {details.technicalExpectations.map(item => <li key={item}>{item}</li>)}
+                  </ul>
+                  <p><strong>Deliverables:</strong></p>
+                  <ul>
+                    {details.deliverables.map(item => <li key={item}>{item}</li>)}
+                  </ul>
+                  <p><strong>Evaluation Criteria:</strong></p>
+                  <ul>
+                    {details.evaluationCriteria.map(item => <li key={item}>{item}</li>)}
+                  </ul>
+                  {details.constraints.length > 0 && (
+                    <>
+                      <p><strong>Constraints:</strong></p>
+                      <ul>
+                        {details.constraints.map(item => <li key={item}>{item}</li>)}
+                      </ul>
+                    </>
+                  )}
+                </div>
+              );
+            })()}
+          </div>
+        </>
+      )}
+
       {state && currentTheme && (
         <>
           <div className="card" style={{ marginTop: '22px' }}>
-            <h4>Assigned Theme</h4>
-            <p><strong>Team ID:</strong> {teamId}</p>
+            <h4>Team & Assigned Theme</h4>
+            <p><strong>Team ID:</strong> {teamMeta?.teamId || teamId}</p>
+            <p><strong>Team Name:</strong> {teamMeta?.teamName || '-'}</p>
+            <p><strong>Leader:</strong> {teamMeta?.leaderName || '-'}</p>
             <p><strong>Theme:</strong> {currentTheme.name}</p>
             {state.superUsed && <p><strong>Mode:</strong> Super Power Key Active (non-revertible)</p>}
+          </div>
+
+          <div className="card" style={{ marginTop: '22px' }}>
+            <h4>Available Problem Statements</h4>
+            <p>Select one statement and use <strong>View Complete Statement</strong> to read full details.</p>
+            {visibleStatements.map(statement => {
+              const statementKey = `${currentTheme.slug}:${statement.domain}`;
+              const selected = state.selectedKey === statementKey;
+              const confirmed = state.confirmedKey === statementKey;
+              return (
+                <div className="card" key={statementKey} style={{ marginTop: '14px' }}>
+                  <h4 style={{ marginBottom: '8px' }}>{DOMAIN_LABELS[statement.domain]}</h4>
+                  <p><strong>{statement.title}</strong></p>
+                  <p>{statement.summary}</p>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '10px' }}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => update(prev => ({ ...prev, selectedKey: selected ? '' : statementKey }))}
+                      style={{ width: '18px', height: '18px' }}
+                    />
+                    <span>Select this statement</span>
+                  </label>
+                  <button
+                    className="btn btn-ghost"
+                    type="button"
+                    style={{ marginTop: '10px' }}
+                    onClick={() => setViewingKey(statementKey)}
+                  >
+                    View Complete Statement
+                  </button>
+                  {confirmed && <p style={{ marginTop: '10px', color: '#86efac' }}><strong>Confirmed</strong></p>}
+                </div>
+              );
+            })}
           </div>
 
           <div className="card" style={{ marginTop: '20px' }}>
@@ -958,68 +1141,56 @@ export default function ProblemStatement() {
             </div>
           </div>
 
-          <div className="cards-grid" style={{ marginTop: '22px' }}>
-            {visibleStatements.map(statement => {
-              const statementKey = `${currentTheme.slug}:${statement.domain}`;
-              const selected = state.selectedKey === statementKey;
-              const confirmed = state.confirmedKey === statementKey;
-              const details = getStatementDetails(currentTheme, statement);
-              return (
-                <div className="card" key={statementKey}>
-                  <h4>{DOMAIN_LABELS[statement.domain]}</h4>
-                  <p><strong>{statement.title}</strong></p>
-                  <p>{statement.summary}</p>
-
-                  <div className="problem-details">
-                    <p><strong>Background:</strong> {details.background}</p>
-                    <p><strong>Problem Statement:</strong> {details.problemStatement}</p>
-                    <p><strong>Functional Requirements:</strong></p>
-                    <ul>
-                      {details.functionalRequirements.map(item => <li key={item}>{item}</li>)}
-                    </ul>
-                    <p><strong>Technical Expectations & Constraints:</strong></p>
-                    <ul>
-                      {details.technicalExpectations.map(item => <li key={item}>{item}</li>)}
-                    </ul>
-                    <p><strong>Deliverables:</strong></p>
-                    <ul>
-                      {details.deliverables.map(item => <li key={item}>{item}</li>)}
-                    </ul>
-                    <p><strong>Evaluation Criteria:</strong></p>
-                    <ul>
-                      {details.evaluationCriteria.map(item => <li key={item}>{item}</li>)}
-                    </ul>
-                    {details.constraints.length > 0 && (
-                      <>
-                        <p><strong>Constraints:</strong></p>
-                        <ul>
-                          {details.constraints.map(item => <li key={item}>{item}</li>)}
-                        </ul>
-                      </>
-                    )}
-                  </div>
-
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px' }}>
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => update(prev => ({ ...prev, selectedKey: selected ? '' : statementKey }))}
-                      style={{ width: '18px', height: '18px' }}
-                    />
-                    <span>Select this statement</span>
-                  </label>
-                  {confirmed && <p style={{ marginTop: '10px', color: '#86efac' }}><strong>Confirmed</strong></p>}
-                </div>
-              );
-            })}
-          </div>
-
           <div className="card" style={{ marginTop: '22px' }}>
             <button className="btn btn-primary" type="button" onClick={confirmSelection} disabled={confirming}>
               {confirming ? 'Confirming...' : 'Confirm Problem Statement'}
             </button>
             {result && <div className="banner" style={{ marginTop: '16px' }}>{result}</div>}
           </div>
+
+          {activeViewedStatement && (
+            <div className="ps-modal-overlay">
+              <div className="ps-modal-card">
+                <button className="ps-modal-close" type="button" onClick={() => setViewingKey('')}>x</button>
+                <h3 style={{ marginTop: 0 }}>{DOMAIN_LABELS[activeViewedStatement.domain]}</h3>
+                <p><strong>{activeViewedStatement.title}</strong></p>
+                <p>{activeViewedStatement.summary}</p>
+                {(() => {
+                  const details = getStatementDetails(currentTheme, activeViewedStatement);
+                  return (
+                    <div className="problem-details">
+                      <p><strong>Background:</strong> {details.background}</p>
+                      <p><strong>Problem Statement:</strong> {details.problemStatement}</p>
+                      <p><strong>Functional Requirements:</strong></p>
+                      <ul>
+                        {details.functionalRequirements.map(item => <li key={item}>{item}</li>)}
+                      </ul>
+                      <p><strong>Technical Expectations & Constraints:</strong></p>
+                      <ul>
+                        {details.technicalExpectations.map(item => <li key={item}>{item}</li>)}
+                      </ul>
+                      <p><strong>Deliverables:</strong></p>
+                      <ul>
+                        {details.deliverables.map(item => <li key={item}>{item}</li>)}
+                      </ul>
+                      <p><strong>Evaluation Criteria:</strong></p>
+                      <ul>
+                        {details.evaluationCriteria.map(item => <li key={item}>{item}</li>)}
+                      </ul>
+                      {details.constraints.length > 0 && (
+                        <>
+                          <p><strong>Constraints:</strong></p>
+                          <ul>
+                            {details.constraints.map(item => <li key={item}>{item}</li>)}
+                          </ul>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
         </>
       )}
     </section>
