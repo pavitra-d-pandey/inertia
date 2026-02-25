@@ -172,7 +172,7 @@ export default function Hackathon() {
               <p><strong>Phone:</strong> {idCard.participantPhone}</p>
               <p><strong>Team:</strong> {idCard.teamName}</p>
               <p><strong>College:</strong> {idCard.collegeName}</p>
-              <p><strong>Team ID:</strong> CH-{idCard.teamId}</p>
+              <p><strong>Team ID:</strong> {idCard.teamId}</p>
               <p><strong>Team Code:</strong> {idCard.teamCode}</p>
               <p><strong>Issued:</strong> {idCard.issuedAt}</p>
             </div>

@@ -665,9 +665,9 @@ textarea:focus {
 }
 
 .ps-modal-close {
-  position: sticky;
-  top: 10px;
-  left: calc(100% - 42px);
+  position: absolute;
+  top: 12px;
+  right: 12px;
   width: 34px;
   height: 34px;
   border-radius: 999px;
@@ -676,7 +676,7 @@ textarea:focus {
   color: #fff;
   font-weight: 700;
   cursor: pointer;
-  z-index: 2;
+  z-index: 120;
 }
 
 .ps-modal-card h3 {

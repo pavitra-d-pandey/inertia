@@ -134,7 +134,7 @@ export type HackathonIDCard = {
   participantName: string;
   participantPhone: string;
   role: string;
-  teamId: number;
+  teamId: string;
   teamCode: string;
   issuedAt: string;
 };

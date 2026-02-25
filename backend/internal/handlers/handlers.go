@@ -1074,6 +1074,27 @@ func (h *Handler) generateHackathonIDCardCode(c *gin.Context) {
 		return
 	}
 
+	_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
+		ctx,
+		hackathonRegistrationIDFilter(requestDoc.RegistrationID),
+		bson.M{
+			"$set": bson.M{
+				"teamId":          code,
+				"teamIdUpdatedAt": now,
+			},
+		},
+	)
+	_, _ = h.DB.Collection("hackathon_problem_statement_choices").UpdateOne(
+		ctx,
+		bson.M{"registrationId": requestDoc.RegistrationID},
+		bson.M{
+			"$set": bson.M{
+				"teamId":    code,
+				"updatedAt": now,
+			},
+		},
+	)
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "4-digit code generated successfully.",
 		"code":    code,
@@ -2398,7 +2419,7 @@ type hackathonIDCardData struct {
 	ParticipantName  string `json:"participantName"`
 	ParticipantPhone string `json:"participantPhone"`
 	Role             string `json:"role"`
-	TeamID           int64  `json:"teamId"`
+	TeamID           string `json:"teamId"`
 	TeamCode         string `json:"teamCode"`
 	IssuedAt         string `json:"issuedAt"`
 }
@@ -2491,10 +2512,25 @@ func (h *Handler) findHackathonRegistrationByInputTeamID(ctx context.Context, in
 	}
 
 	id, err := parseHackathonTeamID(normalized)
-	if err != nil {
+	if err == nil {
+		return h.findHackathonRegistrationByID(ctx, id)
+	}
+
+	var issuedReq struct {
+		RegistrationID int64 `bson:"registrationId"`
+	}
+	err = h.DB.Collection("hackathon_id_card_requests").FindOne(
+		ctx,
+		bson.M{"status": "issued", "generatedCode": strings.TrimSpace(input)},
+	).Decode(&issuedReq)
+	if err == nil {
+		return h.findHackathonRegistrationByID(ctx, issuedReq.RegistrationID)
+	}
+	if err != mongo.ErrNoDocuments {
 		return hackathonRegistrationDoc{}, err
 	}
-	return h.findHackathonRegistrationByID(ctx, id)
+
+	return hackathonRegistrationDoc{}, mongo.ErrNoDocuments
 }
 
 func parseHackathonTeamID(input string) (int64, error) {
@@ -2593,7 +2629,7 @@ func (h *Handler) resolveHackathonIDCard(ctx context.Context, phone, code string
 		ParticipantName:  participantName,
 		ParticipantPhone: participantPhone,
 		Role:             role,
-		TeamID:           registration.ID,
+		TeamID:           registration.TeamID,
 		TeamCode:         requestDoc.GeneratedCode,
 		IssuedAt:         requestDoc.IssuedAt.Format("2006-01-02 15:04:05"),
 	}, nil
@@ -2755,7 +2791,7 @@ func buildHackathonIDCardSVG(card hackathonIDCardData) string {
 	college := html.EscapeString(card.CollegeName)
 	teamCode := html.EscapeString(card.TeamCode)
 	issuedAt := html.EscapeString(card.IssuedAt)
-	teamID := fmt.Sprintf("CH-%d", card.TeamID)
+	teamID := html.EscapeString(card.TeamID)
 
 	return fmt.Sprintf(
 		`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
