@@ -2405,7 +2405,7 @@ type hackathonIDCardData struct {
 
 func (h *Handler) findHackathonRegistrationByID(ctx context.Context, registrationID int64) (hackathonRegistrationDoc, error) {
 	var registration hackathonRegistrationDoc
-	err := h.DB.Collection("hackathon_registrations").FindOne(ctx, bson.M{"id": registrationID}).Decode(&registration)
+	err := h.DB.Collection("hackathon_registrations").FindOne(ctx, hackathonRegistrationIDFilter(registrationID)).Decode(&registration)
 	if err != nil {
 		return hackathonRegistrationDoc{}, err
 	}
@@ -2413,7 +2413,7 @@ func (h *Handler) findHackathonRegistrationByID(ctx context.Context, registratio
 		registration.TeamID = canonicalHackathonTeamID(registration.ID)
 		_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
 			ctx,
-			bson.M{"id": registration.ID},
+			hackathonRegistrationIDFilter(registration.ID),
 			bson.M{"$set": bson.M{"teamId": registration.TeamID}},
 		)
 	}
@@ -2437,7 +2437,7 @@ func (h *Handler) findHackathonRegistrationByPhone(ctx context.Context, normaliz
 				registration.TeamID = canonicalHackathonTeamID(registration.ID)
 				_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
 					ctx,
-					bson.M{"id": registration.ID},
+					hackathonRegistrationIDFilter(registration.ID),
 					bson.M{"$set": bson.M{"teamId": registration.TeamID}},
 				)
 			}
@@ -2457,7 +2457,7 @@ func (h *Handler) findHackathonRegistrationByInputTeamID(ctx context.Context, in
 				byTeamID.TeamID = canonicalHackathonTeamID(byTeamID.ID)
 				_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
 					ctx,
-					bson.M{"id": byTeamID.ID},
+					hackathonRegistrationIDFilter(byTeamID.ID),
 					bson.M{"$set": bson.M{"teamId": byTeamID.TeamID}},
 				)
 			}
@@ -2480,7 +2480,7 @@ func (h *Handler) findHackathonRegistrationByInputTeamID(ctx context.Context, in
 			}
 			_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
 				ctx,
-				bson.M{"id": byTeamID.ID},
+				hackathonRegistrationIDFilter(byTeamID.ID),
 				bson.M{"$set": bson.M{"teamId": byTeamID.TeamID}},
 			)
 			return byTeamID, nil
@@ -2518,6 +2518,16 @@ func parseHackathonTeamID(input string) (int64, error) {
 
 func canonicalHackathonTeamID(id int64) string {
 	return fmt.Sprintf("CH-%d", id)
+}
+
+func hackathonRegistrationIDFilter(id int64) bson.M {
+	return bson.M{
+		"$or": []bson.M{
+			{"id": id},
+			{"id": int32(id)},
+			{"id": int(id)},
+		},
+	}
 }
 
 func (h *Handler) resolveHackathonIDCard(ctx context.Context, phone, code string) (hackathonIDCardData, error) {
