@@ -560,6 +560,40 @@ textarea:focus {
   box-shadow: var(--shadow);
 }
 
+.id-card-preview {
+  margin-top: 14px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: linear-gradient(140deg, #0f172a, #1d4ed8);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35);
+}
+
+.id-card-header {
+  padding: 18px 20px;
+  background: rgba(255, 255, 255, 0.14);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.id-card-event {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.id-card-subtitle {
+  margin-top: 4px;
+  font-size: 0.92rem;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.id-card-body {
+  padding: 18px 20px 22px;
+}
+
+.id-card-body p {
+  margin: 0 0 10px;
+}
+
 .empty-state {
   margin-top: 24px;
   text-align: center;

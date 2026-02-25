@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -52,6 +53,9 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		api.POST("/robo-race/register", h.registerKineticShowdown)
 		api.POST("/kinetic-showdown/register", h.registerKineticShowdown)
 		api.POST("/hackathon/register", h.registerHackathon)
+		api.POST("/hackathon/id-card/request", h.requestHackathonIDCard)
+		api.POST("/hackathon/id-card/verify", h.verifyHackathonIDCard)
+		api.POST("/hackathon/id-card/download", h.downloadHackathonIDCard)
 		api.POST("/esports/register", h.registerEsports)
 		api.POST("/esports/solo-register", h.registerSoloEsports)
 		api.POST("/open-mic/register", h.registerOpenMic)
@@ -77,6 +81,8 @@ func (h *Handler) RegisterRoutes(r *gin.Engine) {
 		admin.GET("/registrations/robo-race", h.getRoboRegistrations)
 		admin.GET("/registrations/kinetic-showdown", h.getRoboRegistrations)
 		admin.GET("/registrations/hackathon", h.getHackathonRegistrations)
+		admin.GET("/hackathon/id-card/requests", h.getHackathonIDCardRequests)
+		admin.POST("/hackathon/id-card/generate-code", h.generateHackathonIDCardCode)
 		admin.GET("/registrations/esports", h.getEsportsRegistrations)
 		admin.GET("/registrations/esports-solo", h.getSoloEsportsRegistrations)
 		admin.GET("/registrations/esports-solo-random-teams", h.getSoloEsportsRandomTeams)
@@ -458,6 +464,334 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Hackathon registration saved"})
+}
+
+func (h *Handler) requestHackathonIDCard(c *gin.Context) {
+	var req struct {
+		LeaderPhone string `json:"leaderPhone"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	leaderPhone := strings.TrimSpace(req.LeaderPhone)
+	leaderPhoneNormalized := normalizePhone(req.LeaderPhone)
+	if leaderPhone == "" || leaderPhoneNormalized == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "leader phone is required"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	registration, err := h.findHackathonRegistrationByPhone(ctx, leaderPhoneNormalized)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "no hackathon team found with this leader phone"})
+		return
+	}
+
+	now := time.Now()
+	var existing struct {
+		ID int64 `bson:"id"`
+	}
+	findErr := h.DB.Collection("hackathon_id_card_requests").FindOne(
+		ctx,
+		bson.M{"registrationId": registration.ID},
+	).Decode(&existing)
+
+	requestDoc := bson.M{
+		"registrationId":        registration.ID,
+		"leaderPhone":           leaderPhone,
+		"leaderPhoneNormalized": leaderPhoneNormalized,
+		"status":                "requested",
+		"generatedCode":         "",
+		"approvedParticipants":  []bson.M{},
+		"requestedAt":           now,
+		"updatedAt":             now,
+	}
+
+	if findErr == mongo.ErrNoDocuments {
+		id, idErr := h.nextID(ctx, "hackathon_id_card_requests")
+		if idErr != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "request save failed"})
+			return
+		}
+		requestDoc["id"] = id
+		_, err = h.DB.Collection("hackathon_id_card_requests").InsertOne(ctx, requestDoc)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "request save failed"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"message": "Request sent to hackathon manager."})
+		return
+	}
+
+	if findErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "request save failed"})
+		return
+	}
+
+	_, err = h.DB.Collection("hackathon_id_card_requests").UpdateOne(
+		ctx,
+		bson.M{"id": existing.ID},
+		bson.M{"$set": requestDoc},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "request save failed"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Request sent to hackathon manager."})
+}
+
+func (h *Handler) verifyHackathonIDCard(c *gin.Context) {
+	var req struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	phone := strings.TrimSpace(req.Phone)
+	code := strings.TrimSpace(req.Code)
+	if normalizePhone(phone) == "" || code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "phone and 4-digit code are required"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	card, err := h.resolveHackathonIDCard(ctx, phone, code)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid phone number or code"})
+		return
+	}
+
+	c.JSON(http.StatusOK, card)
+}
+
+func (h *Handler) downloadHackathonIDCard(c *gin.Context) {
+	var req struct {
+		Phone string `json:"phone"`
+		Code  string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	phone := strings.TrimSpace(req.Phone)
+	code := strings.TrimSpace(req.Code)
+	if normalizePhone(phone) == "" || code == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "phone and 4-digit code are required"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	card, err := h.resolveHackathonIDCard(ctx, phone, code)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid phone number or code"})
+		return
+	}
+
+	svg := buildHackathonIDCardSVG(card)
+	filename := fmt.Sprintf("%s-%s-hackathon-id.svg", slugifyForFilename(card.ParticipantName), normalizePhone(card.ParticipantPhone))
+	c.Header("Content-Type", "image/svg+xml; charset=utf-8")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.String(http.StatusOK, svg)
+}
+
+func (h *Handler) getHackathonIDCardRequests(c *gin.Context) {
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	cursor, err := h.DB.Collection("hackathon_id_card_requests").Find(
+		ctx,
+		bson.M{"status": "requested"},
+		options.Find().SetSort(bson.D{{Key: "requestedAt", Value: -1}}),
+	)
+	if err != nil {
+		c.JSON(http.StatusOK, []gin.H{})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	items := make([]gin.H, 0)
+	for cursor.Next(ctx) {
+		var reqDoc struct {
+			ID             int64     `bson:"id"`
+			RegistrationID int64     `bson:"registrationId"`
+			RequestedAt    time.Time `bson:"requestedAt"`
+		}
+		if err := cursor.Decode(&reqDoc); err != nil {
+			continue
+		}
+
+		registration, findErr := h.findHackathonRegistrationByID(ctx, reqDoc.RegistrationID)
+		if findErr != nil {
+			continue
+		}
+
+		participants := []gin.H{
+			{
+				"name":   registration.ContactName,
+				"phone":  registration.ContactPhone,
+				"gender": "",
+				"role":   "Leader",
+			},
+		}
+		for _, member := range registration.Members {
+			participants = append(participants, gin.H{
+				"name":   member.Name,
+				"phone":  member.Phone,
+				"gender": member.Gender,
+				"role":   "Member",
+			})
+		}
+
+		items = append(items, gin.H{
+			"requestId":      reqDoc.ID,
+			"registrationId": registration.ID,
+			"requestedAt":    reqDoc.RequestedAt.Format("2006-01-02 15:04:05"),
+			"teamName":       registration.TeamName,
+			"collegeName":    registration.CollegeName,
+			"leaderName":     registration.ContactName,
+			"leaderPhone":    registration.ContactPhone,
+			"participants":   participants,
+		})
+	}
+
+	c.JSON(http.StatusOK, items)
+}
+
+func (h *Handler) generateHackathonIDCardCode(c *gin.Context) {
+	var req struct {
+		RequestID    int64 `json:"requestId"`
+		Participants []struct {
+			Name  string `json:"name"`
+			Phone string `json:"phone"`
+		} `json:"participants"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payload"})
+		return
+	}
+
+	if req.RequestID < 1 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "request id is required"})
+		return
+	}
+	if len(req.Participants) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "select at least one participant"})
+		return
+	}
+
+	ctx, cancel := h.ctx()
+	defer cancel()
+
+	var requestDoc struct {
+		ID             int64 `bson:"id"`
+		RegistrationID int64 `bson:"registrationId"`
+	}
+	err := h.DB.Collection("hackathon_id_card_requests").FindOne(
+		ctx,
+		bson.M{"id": req.RequestID, "status": "requested"},
+	).Decode(&requestDoc)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "request not found or already processed"})
+		return
+	}
+
+	registration, err := h.findHackathonRegistrationByID(ctx, requestDoc.RegistrationID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "linked registration not found"})
+		return
+	}
+
+	available := make(map[string]struct {
+		Name  string
+		Phone string
+		Role  string
+	})
+	leaderKey := participantLookupKey(registration.ContactName, registration.ContactPhone)
+	available[leaderKey] = struct {
+		Name  string
+		Phone string
+		Role  string
+	}{
+		Name:  registration.ContactName,
+		Phone: registration.ContactPhone,
+		Role:  "Leader",
+	}
+	for _, member := range registration.Members {
+		memberKey := participantLookupKey(member.Name, member.Phone)
+		available[memberKey] = struct {
+			Name  string
+			Phone string
+			Role  string
+		}{
+			Name:  member.Name,
+			Phone: member.Phone,
+			Role:  "Member",
+		}
+	}
+
+	approved := make([]bson.M, 0, len(req.Participants))
+	seen := map[string]bool{}
+	for _, participant := range req.Participants {
+		key := participantLookupKey(participant.Name, participant.Phone)
+		item, exists := available[key]
+		if !exists {
+			c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("participant not found: %s (%s)", participant.Name, participant.Phone)})
+			return
+		}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		approved = append(approved, bson.M{
+			"name":            item.Name,
+			"phone":           item.Phone,
+			"role":            item.Role,
+			"normalizedName":  normalizeName(item.Name),
+			"normalizedPhone": normalizePhone(item.Phone),
+		})
+	}
+	if len(approved) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "select at least one participant"})
+		return
+	}
+
+	code := generateFourDigitCode(fmt.Sprintf("%d", requestDoc.RegistrationID))
+	now := time.Now()
+	_, err = h.DB.Collection("hackathon_id_card_requests").UpdateOne(
+		ctx,
+		bson.M{"id": requestDoc.ID},
+		bson.M{
+			"$set": bson.M{
+				"status":               "issued",
+				"generatedCode":        code,
+				"approvedParticipants": approved,
+				"issuedAt":             now,
+				"updatedAt":            now,
+			},
+		},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not generate code"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "4-digit code generated successfully.",
+		"code":    code,
+	})
 }
 
 func (h *Handler) registerEsports(c *gin.Context) {
@@ -1758,6 +2092,127 @@ func (h *Handler) getContactRegistrations(c *gin.Context) {
 	c.JSON(http.StatusOK, items)
 }
 
+type hackathonRegistrationDoc struct {
+	ID           int64  `bson:"id"`
+	TeamName     string `bson:"teamName"`
+	ContactName  string `bson:"contactName"`
+	ContactPhone string `bson:"contactPhone"`
+	CollegeName  string `bson:"collegeName"`
+	Members      []struct {
+		Name   string `bson:"name"`
+		Phone  string `bson:"phone"`
+		Gender string `bson:"gender"`
+	} `bson:"members"`
+}
+
+type hackathonIDCardData struct {
+	TeamName         string `json:"teamName"`
+	CollegeName      string `json:"collegeName"`
+	ParticipantName  string `json:"participantName"`
+	ParticipantPhone string `json:"participantPhone"`
+	Role             string `json:"role"`
+	TeamID           int64  `json:"teamId"`
+	TeamCode         string `json:"teamCode"`
+	IssuedAt         string `json:"issuedAt"`
+}
+
+func (h *Handler) findHackathonRegistrationByID(ctx context.Context, registrationID int64) (hackathonRegistrationDoc, error) {
+	var registration hackathonRegistrationDoc
+	err := h.DB.Collection("hackathon_registrations").FindOne(ctx, bson.M{"id": registrationID}).Decode(&registration)
+	if err != nil {
+		return hackathonRegistrationDoc{}, err
+	}
+	return registration, nil
+}
+
+func (h *Handler) findHackathonRegistrationByPhone(ctx context.Context, normalizedPhone string) (hackathonRegistrationDoc, error) {
+	cursor, err := h.DB.Collection("hackathon_registrations").Find(ctx, bson.D{}, options.Find().SetSort(bson.D{{Key: "createdAt", Value: -1}}))
+	if err != nil {
+		return hackathonRegistrationDoc{}, err
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var registration hackathonRegistrationDoc
+		if err := cursor.Decode(&registration); err != nil {
+			continue
+		}
+		if normalizePhone(registration.ContactPhone) == normalizedPhone {
+			return registration, nil
+		}
+	}
+	return hackathonRegistrationDoc{}, mongo.ErrNoDocuments
+}
+
+func (h *Handler) resolveHackathonIDCard(ctx context.Context, phone, code string) (hackathonIDCardData, error) {
+	normalizedPhone := normalizePhone(phone)
+
+	var requestDoc struct {
+		RegistrationID       int64  `bson:"registrationId"`
+		GeneratedCode        string `bson:"generatedCode"`
+		ApprovedParticipants []struct {
+			Name            string `bson:"name"`
+			Phone           string `bson:"phone"`
+			Role            string `bson:"role"`
+			NormalizedPhone string `bson:"normalizedPhone"`
+		} `bson:"approvedParticipants"`
+		IssuedAt time.Time `bson:"issuedAt"`
+	}
+	err := h.DB.Collection("hackathon_id_card_requests").FindOne(
+		ctx,
+		bson.M{
+			"status":        "issued",
+			"generatedCode": strings.TrimSpace(code),
+			"approvedParticipants": bson.M{
+				"$elemMatch": bson.M{
+					"normalizedPhone": normalizedPhone,
+				},
+			},
+		},
+	).Decode(&requestDoc)
+	if err != nil {
+		return hackathonIDCardData{}, err
+	}
+
+	registration, err := h.findHackathonRegistrationByID(ctx, requestDoc.RegistrationID)
+	if err != nil {
+		return hackathonIDCardData{}, err
+	}
+
+	role := "Participant"
+	participantName := ""
+	participantPhone := phone
+	for _, participant := range requestDoc.ApprovedParticipants {
+		if participant.NormalizedPhone == normalizedPhone {
+			if strings.TrimSpace(participant.Role) != "" {
+				role = participant.Role
+			}
+			if strings.TrimSpace(participant.Name) != "" {
+				participantName = strings.TrimSpace(participant.Name)
+			}
+			if strings.TrimSpace(participant.Phone) != "" {
+				participantPhone = strings.TrimSpace(participant.Phone)
+			}
+			break
+		}
+	}
+
+	if participantName == "" {
+		return hackathonIDCardData{}, mongo.ErrNoDocuments
+	}
+
+	return hackathonIDCardData{
+		TeamName:         registration.TeamName,
+		CollegeName:      registration.CollegeName,
+		ParticipantName:  participantName,
+		ParticipantPhone: participantPhone,
+		Role:             role,
+		TeamID:           registration.ID,
+		TeamCode:         requestDoc.GeneratedCode,
+		IssuedAt:         requestDoc.IssuedAt.Format("2006-01-02 15:04:05"),
+	}, nil
+}
+
 func verifyRazorpayPayment(orderID, paymentID, signature, keySecret string) bool {
 	orderID = strings.TrimSpace(orderID)
 	paymentID = strings.TrimSpace(paymentID)
@@ -1873,6 +2328,115 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func normalizeName(value string) string {
+	parts := strings.Fields(strings.ToLower(strings.TrimSpace(value)))
+	return strings.Join(parts, " ")
+}
+
+func slugifyForFilename(value string) string {
+	trimmed := strings.TrimSpace(strings.ToLower(value))
+	if trimmed == "" {
+		return "participant"
+	}
+
+	var b strings.Builder
+	lastDash := false
+	for _, r := range trimmed {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+			lastDash = false
+			continue
+		}
+		if !lastDash {
+			b.WriteByte('-')
+			lastDash = true
+		}
+	}
+	out := strings.Trim(b.String(), "-")
+	if out == "" {
+		return "participant"
+	}
+	return out
+}
+
+func buildHackathonIDCardSVG(card hackathonIDCardData) string {
+	name := html.EscapeString(card.ParticipantName)
+	phone := html.EscapeString(card.ParticipantPhone)
+	role := html.EscapeString(card.Role)
+	team := html.EscapeString(card.TeamName)
+	college := html.EscapeString(card.CollegeName)
+	teamCode := html.EscapeString(card.TeamCode)
+	issuedAt := html.EscapeString(card.IssuedAt)
+	teamID := fmt.Sprintf("CH-%d", card.TeamID)
+
+	return fmt.Sprintf(
+		`<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="720" viewBox="0 0 1200 720">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%%" stop-color="#0f172a"/>
+      <stop offset="100%%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="100%%" stop-color="#ffffff" stop-opacity="0.06"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1200" height="720" fill="url(#bg)"/>
+  <rect x="36" y="36" width="1128" height="648" rx="28" fill="url(#panel)" stroke="#ffffff" stroke-opacity="0.45" stroke-width="2"/>
+  <text x="84" y="118" fill="#ffffff" font-family="Manrope, Arial, sans-serif" font-size="56" font-weight="800" letter-spacing="2">CODEHUNT HACKATHON</text>
+  <text x="84" y="164" fill="#dbeafe" font-family="Manrope, Arial, sans-serif" font-size="30" font-weight="700">Official e-ID Card</text>
+
+  <rect x="84" y="212" width="1032" height="404" rx="20" fill="#0b1222" fill-opacity="0.46" stroke="#ffffff" stroke-opacity="0.24"/>
+
+  <text x="116" y="286" fill="#bfdbfe" font-family="Manrope, Arial, sans-serif" font-size="26" font-weight="700">Name</text>
+  <text x="330" y="286" fill="#ffffff" font-family="Manrope, Arial, sans-serif" font-size="28">%s</text>
+
+  <text x="116" y="346" fill="#bfdbfe" font-family="Manrope, Arial, sans-serif" font-size="26" font-weight="700">Mobile</text>
+  <text x="330" y="346" fill="#ffffff" font-family="Manrope, Arial, sans-serif" font-size="28">%s</text>
+
+  <text x="116" y="406" fill="#bfdbfe" font-family="Manrope, Arial, sans-serif" font-size="26" font-weight="700">Role</text>
+  <text x="330" y="406" fill="#ffffff" font-family="Manrope, Arial, sans-serif" font-size="28">%s</text>
+
+  <text x="116" y="466" fill="#bfdbfe" font-family="Manrope, Arial, sans-serif" font-size="26" font-weight="700">Team Name</text>
+  <text x="330" y="466" fill="#ffffff" font-family="Manrope, Arial, sans-serif" font-size="28">%s</text>
+
+  <text x="116" y="526" fill="#bfdbfe" font-family="Manrope, Arial, sans-serif" font-size="26" font-weight="700">Team Code</text>
+  <text x="330" y="526" fill="#fde68a" font-family="Manrope, Arial, sans-serif" font-size="34" font-weight="800">%s</text>
+
+  <text x="116" y="586" fill="#bfdbfe" font-family="Manrope, Arial, sans-serif" font-size="24" font-weight="700">Team ID</text>
+  <text x="330" y="586" fill="#ffffff" font-family="Manrope, Arial, sans-serif" font-size="24">%s</text>
+
+  <text x="740" y="286" fill="#bfdbfe" font-family="Manrope, Arial, sans-serif" font-size="24" font-weight="700">College</text>
+  <text x="740" y="328" fill="#ffffff" font-family="Manrope, Arial, sans-serif" font-size="24">%s</text>
+  <text x="740" y="586" fill="#cbd5e1" font-family="Manrope, Arial, sans-serif" font-size="20">Issued: %s</text>
+</svg>`,
+		name, phone, role, team, teamCode, teamID, college, issuedAt,
+	)
+}
+
+func normalizePhone(value string) string {
+	trimmed := strings.TrimSpace(value)
+	digits := make([]rune, 0, len(trimmed))
+	for _, r := range trimmed {
+		if r >= '0' && r <= '9' {
+			digits = append(digits, r)
+		}
+	}
+	return string(digits)
+}
+
+func participantLookupKey(name, phone string) string {
+	return normalizeName(name) + "|" + normalizePhone(phone)
+}
+
+func generateFourDigitCode(seed string) string {
+	raw := fmt.Sprintf("%s-%d", seed, time.Now().UnixNano())
+	hash := sha1.Sum([]byte(raw))
+	value := int(hash[0])<<8 + int(hash[1])
+	code := (value % 9000) + 1000
+	return fmt.Sprintf("%04d", code)
 }
 
 func generateTeamCode(seed string) string {

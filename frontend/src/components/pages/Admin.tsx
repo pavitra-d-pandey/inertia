@@ -199,6 +199,7 @@ export default function Admin() {
       <div className="admin-links">
         <Link className="btn btn-ghost" to="/secret-admin/registrations">View Registrations Data</Link>
         <Link className="btn btn-ghost" to="/secret-admin/manage-content">Edit / Delete Uploaded Content</Link>
+        <Link className="btn btn-ghost" to="/hackathon-manager">Hackathon Manager</Link>
       </div>
 
       <div className="card">

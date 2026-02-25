@@ -101,6 +101,35 @@ export type HackathonRegistration = {
   createdAt: string;
 };
 
+export type HackathonIDCardParticipant = {
+  name: string;
+  phone: string;
+  gender: string;
+  role: string;
+};
+
+export type HackathonIDCardRequest = {
+  requestId: number;
+  registrationId: number;
+  requestedAt: string;
+  teamName: string;
+  collegeName: string;
+  leaderName: string;
+  leaderPhone: string;
+  participants: HackathonIDCardParticipant[];
+};
+
+export type HackathonIDCard = {
+  teamName: string;
+  collegeName: string;
+  participantName: string;
+  participantPhone: string;
+  role: string;
+  teamId: number;
+  teamCode: string;
+  issuedAt: string;
+};
+
 export type EsportsRegistration = {
   id: number;
   teamName: string;
