@@ -22,7 +22,6 @@ type SubstitutePlayer = {
 };
 
 export default function Esports() {
-  const esportsClosed = true;
   const [mode, setMode] = useState<'team' | 'solo'>('team');
   const [game, setGame] = useState<'valorant' | 'bgmi'>('valorant');
   const [form, setForm] = useState({
@@ -78,10 +77,6 @@ export default function Esports() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setResult('');
-    if (esportsClosed) {
-      setResult('eSports registrations are closed.');
-      return;
-    }
     if (isBgmiFull) {
       setResult('BGMI seats are full. Registrations are closed.');
       return;
@@ -170,9 +165,8 @@ export default function Esports() {
 
       <div className="card" style={{ marginTop: '24px' }}>
         <h4>eSports Registration</h4>
-        {esportsClosed && <div className="banner" style={{ marginBottom: '12px' }}>eSports registrations are closed.</div>}
         <form className="form-grid" onSubmit={handleSubmit}>
-          <select value={game} disabled={esportsClosed} onChange={e => onGameChange(e.target.value as 'valorant' | 'bgmi')}>
+          <select value={game} onChange={e => onGameChange(e.target.value as 'valorant' | 'bgmi')}>
             <option value="valorant">Valorant (5 players)</option>
             <option value="bgmi">BGMI (Seats Full)</option>
           </select>
@@ -182,7 +176,6 @@ export default function Esports() {
             <button
               type="button"
               className={`btn ${mode === 'team' ? 'btn-primary' : 'btn-ghost'}`}
-              disabled={esportsClosed}
               onClick={() => setMode('team')}
             >
               Team Registration
@@ -190,7 +183,6 @@ export default function Esports() {
             <button
               type="button"
               className={`btn ${mode === 'solo' ? 'btn-primary' : 'btn-ghost'}`}
-              disabled={esportsClosed}
               onClick={() => setMode('solo')}
             >
               Solo Registration
@@ -257,8 +249,8 @@ export default function Esports() {
             </>
           )}
 
-          <button className="btn btn-primary" type="submit" disabled={esportsClosed || submitting || isBgmiFull}>
-            {esportsClosed ? 'Registrations Closed' : submitting ? 'Processing Payment...' : `Pay ${feeLabel} & Register`}
+          <button className="btn btn-primary" type="submit" disabled={submitting || isBgmiFull}>
+            {submitting ? 'Processing Payment...' : `Pay ${feeLabel} & Register`}
           </button>
         </form>
         {result && <div className="banner" style={{ marginTop: '18px' }}>{result}</div>}

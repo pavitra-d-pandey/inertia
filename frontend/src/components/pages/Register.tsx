@@ -30,9 +30,9 @@ export default function Register() {
         </div>
         <div className="card">
           <h4>eSports</h4>
-          <p>Registrations are closed.</p>
-          <Link className="btn btn-ghost" to="/esports">
-            View Details
+          <p>Valorant registration is open. BGMI seats are full.</p>
+          <Link className="btn btn-primary" to="/esports">
+            Register eSports
           </Link>
         </div>
         <div className="card">
