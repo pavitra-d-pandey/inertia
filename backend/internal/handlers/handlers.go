@@ -447,6 +447,7 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 
 	_, err = h.DB.Collection("hackathon_registrations").InsertOne(ctx, bson.M{
 		"id":           id,
+		"teamId":       canonicalHackathonTeamID(id),
 		"teamName":     req.TeamName,
 		"contactName":  req.ContactName,
 		"contactPhone": req.ContactPhone,
@@ -511,7 +512,10 @@ func (h *Handler) confirmHackathonProblemStatement(c *gin.Context) {
 		return
 	}
 
-	teamIDCanonical := fmt.Sprintf("CH-%d", registration.ID)
+	teamIDCanonical := strings.TrimSpace(registration.TeamID)
+	if teamIDCanonical == "" {
+		teamIDCanonical = canonicalHackathonTeamID(registration.ID)
+	}
 	now := time.Now()
 	updateFields := bson.M{
 		"registrationId": registration.ID,
@@ -604,7 +608,7 @@ func (h *Handler) getHackathonProblemStatementTeam(c *gin.Context) {
 	}
 
 	response := gin.H{
-		"teamId":     fmt.Sprintf("CH-%d", registration.ID),
+		"teamId":     registration.TeamID,
 		"teamName":   registration.TeamName,
 		"leaderName": registration.ContactName,
 		"locked":     false,
@@ -625,7 +629,7 @@ func (h *Handler) getHackathonProblemStatementTeam(c *gin.Context) {
 	if err == nil {
 		response["locked"] = true
 		response["choice"] = gin.H{
-			"teamId":      fmt.Sprintf("CH-%d", registration.ID),
+			"teamId":      registration.TeamID,
 			"teamName":    registration.TeamName,
 			"leaderName":  registration.ContactName,
 			"themeSlug":   choice.ThemeSlug,
@@ -2314,6 +2318,7 @@ func (h *Handler) getContactRegistrations(c *gin.Context) {
 
 type hackathonRegistrationDoc struct {
 	ID           int64  `bson:"id"`
+	TeamID       string `bson:"teamId"`
 	TeamName     string `bson:"teamName"`
 	ContactName  string `bson:"contactName"`
 	ContactPhone string `bson:"contactPhone"`
@@ -2342,6 +2347,14 @@ func (h *Handler) findHackathonRegistrationByID(ctx context.Context, registratio
 	if err != nil {
 		return hackathonRegistrationDoc{}, err
 	}
+	if strings.TrimSpace(registration.TeamID) == "" {
+		registration.TeamID = canonicalHackathonTeamID(registration.ID)
+		_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
+			ctx,
+			bson.M{"id": registration.ID},
+			bson.M{"$set": bson.M{"teamId": registration.TeamID}},
+		)
+	}
 	return registration, nil
 }
 
@@ -2358,6 +2371,14 @@ func (h *Handler) findHackathonRegistrationByPhone(ctx context.Context, normaliz
 			continue
 		}
 		if normalizePhone(registration.ContactPhone) == normalizedPhone {
+			if strings.TrimSpace(registration.TeamID) == "" {
+				registration.TeamID = canonicalHackathonTeamID(registration.ID)
+				_, _ = h.DB.Collection("hackathon_registrations").UpdateOne(
+					ctx,
+					bson.M{"id": registration.ID},
+					bson.M{"$set": bson.M{"teamId": registration.TeamID}},
+				)
+			}
 			return registration, nil
 		}
 	}
@@ -2381,6 +2402,10 @@ func parseHackathonTeamID(input string) (int64, error) {
 		return 0, fmt.Errorf("invalid team id")
 	}
 	return id, nil
+}
+
+func canonicalHackathonTeamID(id int64) string {
+	return fmt.Sprintf("CH-%d", id)
 }
 
 func (h *Handler) resolveHackathonIDCard(ctx context.Context, phone, code string) (hackathonIDCardData, error) {
