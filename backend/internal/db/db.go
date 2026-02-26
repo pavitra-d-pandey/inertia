@@ -155,6 +155,17 @@ func seedLateHackathonTeams(ctx context.Context, database *mongo.Database) error
 				{Name: "SHRISHTI GUPTA", Phone: "9753448774", Gender: "female"},
 			},
 		},
+		{
+			TeamName:     "Kinetic Aakash",
+			ContactName:  "Aakash Sharma",
+			ContactPhone: "8989607974",
+			CollegeName:  "Jabalpur Engineering College",
+			Members: []member{
+				{Name: "Bhakti Maheshwari", Phone: "9977457170", Gender: "female"},
+				{Name: "Sahil Patel", Phone: "9407157964", Gender: "male"},
+				{Name: "Aaditya Singh Baghel", Phone: "6264479341", Gender: "male"},
+			},
+		},
 	}
 
 	registrations := database.Collection("hackathon_registrations")
