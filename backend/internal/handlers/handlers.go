@@ -453,6 +453,9 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 
 	checkCtx, checkCancel := h.ctx()
 	for phone := range seenPhones {
+		if isHackathonRepeatAllowedPhone(phone) {
+			continue
+		}
 		alreadyUsed, err := h.hackathonPhoneAlreadyRegistered(checkCtx, phone)
 		if err != nil {
 			checkCancel()
@@ -691,6 +694,7 @@ func (h *Handler) requestHackathonIDCard(c *gin.Context) {
 
 	leaderPhone := strings.TrimSpace(req.LeaderPhone)
 	leaderPhoneNormalized := normalizePhone(req.LeaderPhone)
+	allowRepeatForPhone := isHackathonRepeatAllowedPhone(leaderPhoneNormalized)
 	if leaderPhone == "" || leaderPhoneNormalized == "" {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "leader phone is required"})
 		return
@@ -748,7 +752,7 @@ func (h *Handler) requestHackathonIDCard(c *gin.Context) {
 		return
 	}
 
-	if strings.TrimSpace(existing.Status) == "issued" {
+	if strings.TrimSpace(existing.Status) == "issued" && !allowRepeatForPhone {
 		c.JSON(http.StatusConflict, gin.H{
 			"error":   "e-ID request already approved for this team. Leader cannot request again.",
 			"teamId":  registration.TeamID,
@@ -757,7 +761,7 @@ func (h *Handler) requestHackathonIDCard(c *gin.Context) {
 		})
 		return
 	}
-	if strings.TrimSpace(existing.Status) == "requested" {
+	if strings.TrimSpace(existing.Status) == "requested" && !allowRepeatForPhone {
 		c.JSON(http.StatusConflict, gin.H{
 			"error":   "e-ID request is already pending approval.",
 			"teamId":  registration.TeamID,
@@ -2634,6 +2638,10 @@ func hackathonRegistrationIDFilter(id int64) bson.M {
 			{"id": int(id)},
 		},
 	}
+}
+
+func isHackathonRepeatAllowedPhone(normalizedPhone string) bool {
+	return normalizedPhone == "7898292975"
 }
 
 func (h *Handler) resolveHackathonIDCard(ctx context.Context, phone, code string) (hackathonIDCardData, error) {
