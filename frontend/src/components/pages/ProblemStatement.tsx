@@ -1188,6 +1188,11 @@ export default function ProblemStatement() {
                     </div>
                   );
                 })()}
+                <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <button className="btn btn-primary" type="button" onClick={() => setViewingKey('')}>
+                    Back
+                  </button>
+                </div>
               </div>
             </div>
           )}
