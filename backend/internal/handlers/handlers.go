@@ -415,16 +415,33 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "missing fields"})
 		return
 	}
+	if normalizePhone(req.ContactPhone) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid leader phone number"})
+		return
+	}
 	if len(req.Members) != 3 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "hackathon requires exactly 4 members total: 1 leader + 3 team members"})
 		return
 	}
 	femaleCount := 0
+	seenPhones := map[string]bool{}
+	leaderPhoneNormalized := normalizePhone(req.ContactPhone)
+	seenPhones[leaderPhoneNormalized] = true
 	for _, member := range req.Members {
 		if strings.TrimSpace(member.Name) == "" || strings.TrimSpace(member.Phone) == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "all member fields are required"})
 			return
 		}
+		memberPhoneNormalized := normalizePhone(member.Phone)
+		if memberPhoneNormalized == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid member phone number"})
+			return
+		}
+		if seenPhones[memberPhoneNormalized] {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "duplicate phone numbers are not allowed within a team"})
+			return
+		}
+		seenPhones[memberPhoneNormalized] = true
 		if strings.ToLower(strings.TrimSpace(member.Gender)) == "female" {
 			femaleCount++
 		}
@@ -433,6 +450,23 @@ func (h *Handler) registerHackathon(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "at least one female member is required"})
 		return
 	}
+
+	checkCtx, checkCancel := h.ctx()
+	for phone := range seenPhones {
+		alreadyUsed, err := h.hackathonPhoneAlreadyRegistered(checkCtx, phone)
+		if err != nil {
+			checkCancel()
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "could not validate duplicate registrations"})
+			return
+		}
+		if alreadyUsed {
+			checkCancel()
+			c.JSON(http.StatusBadRequest, gin.H{"error": "one or more phone numbers are already registered in another hackathon team"})
+			return
+		}
+	}
+	checkCancel()
+
 	if !verifyRazorpayPayment(req.RazorpayOrderID, req.RazorpayPaymentID, req.RazorpaySignature, h.Config.RazorpayKeySecret) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid payment verification"})
 		return
@@ -2531,6 +2565,42 @@ func (h *Handler) findHackathonRegistrationByInputTeamID(ctx context.Context, in
 	}
 
 	return hackathonRegistrationDoc{}, mongo.ErrNoDocuments
+}
+
+func (h *Handler) hackathonPhoneAlreadyRegistered(ctx context.Context, normalizedPhone string) (bool, error) {
+	cursor, err := h.DB.Collection("hackathon_registrations").Find(
+		ctx,
+		bson.D{},
+		options.Find().SetProjection(bson.M{
+			"contactPhone":  1,
+			"members.phone": 1,
+		}),
+	)
+	if err != nil {
+		return false, err
+	}
+	defer cursor.Close(ctx)
+
+	for cursor.Next(ctx) {
+		var item struct {
+			ContactPhone string `bson:"contactPhone"`
+			Members      []struct {
+				Phone string `bson:"phone"`
+			} `bson:"members"`
+		}
+		if err := cursor.Decode(&item); err != nil {
+			continue
+		}
+		if normalizePhone(item.ContactPhone) == normalizedPhone {
+			return true, nil
+		}
+		for _, member := range item.Members {
+			if normalizePhone(member.Phone) == normalizedPhone {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
 
 func parseHackathonTeamID(input string) (int64, error) {
