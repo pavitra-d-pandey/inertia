@@ -2641,7 +2641,7 @@ func hackathonRegistrationIDFilter(id int64) bson.M {
 }
 
 func isHackathonRepeatAllowedPhone(normalizedPhone string) bool {
-	return normalizedPhone == "7898292975"
+	return normalizedPhone == "7898292975" || normalizedPhone == "8989607974"
 }
 
 func (h *Handler) resolveHackathonIDCard(ctx context.Context, phone, code string) (hackathonIDCardData, error) {
