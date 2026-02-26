@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -118,6 +119,126 @@ func SeedDefaults(database *mongo.Database) error {
 		})
 		if err != nil {
 			return fmt.Errorf("workshops seed: %w", err)
+		}
+	}
+
+	if err := seedLateHackathonTeams(ctx, database); err != nil {
+		return fmt.Errorf("late hackathon team seed: %w", err)
+	}
+
+	return nil
+}
+
+func seedLateHackathonTeams(ctx context.Context, database *mongo.Database) error {
+	type member struct {
+		Name   string
+		Phone  string
+		Gender string
+	}
+	type lateTeam struct {
+		TeamName     string
+		ContactName  string
+		ContactPhone string
+		CollegeName  string
+		Members      []member
+	}
+
+	teams := []lateTeam{
+		{
+			TeamName:     "TECH_DEVELOPER",
+			ContactName:  "ARPIT KUMAR MISHRA",
+			ContactPhone: "7869471763",
+			CollegeName:  "Jabalpur Engineering College",
+			Members: []member{
+				{Name: "RAHUL CHELANI", Phone: "7089812343", Gender: "male"},
+				{Name: "PULKIT HARDAHA", Phone: "8827423234", Gender: "male"},
+				{Name: "SHRISHTI GUPTA", Phone: "9753448774", Gender: "female"},
+			},
+		},
+	}
+
+	registrations := database.Collection("hackathon_registrations")
+
+	var last struct {
+		ID int64 `bson:"id"`
+	}
+	err := registrations.FindOne(
+		ctx,
+		bson.D{},
+		options.FindOne().SetSort(bson.D{{Key: "id", Value: -1}}).SetProjection(bson.M{"id": 1}),
+	).Decode(&last)
+	if err != nil && err != mongo.ErrNoDocuments {
+		return err
+	}
+	nextID := int64(1)
+	if err == nil && last.ID > 0 {
+		nextID = last.ID + 1
+	}
+
+	for _, team := range teams {
+		filter := bson.M{"contactPhone": team.ContactPhone}
+
+		var existing struct {
+			ID     int64  `bson:"id"`
+			TeamID string `bson:"teamId"`
+		}
+		findErr := registrations.FindOne(ctx, filter).Decode(&existing)
+		if findErr != nil && findErr != mongo.ErrNoDocuments {
+			return findErr
+		}
+
+		teamID := strings.TrimSpace(existing.TeamID)
+		id := existing.ID
+		if findErr == mongo.ErrNoDocuments || id < 1 {
+			id = nextID
+			nextID++
+		}
+		if teamID == "" {
+			teamID = fmt.Sprintf("CH-%d", id)
+		}
+
+		femaleCount := 0
+		memberDocs := make([]bson.M, 0, len(team.Members))
+		for _, m := range team.Members {
+			if strings.EqualFold(strings.TrimSpace(m.Gender), "female") {
+				femaleCount++
+			}
+			memberDocs = append(memberDocs, bson.M{
+				"name":   m.Name,
+				"phone":  m.Phone,
+				"gender": m.Gender,
+			})
+		}
+
+		now := time.Now()
+		baseDoc := bson.M{
+			"id":           id,
+			"teamId":       teamID,
+			"teamName":     team.TeamName,
+			"contactName":  team.ContactName,
+			"contactPhone": team.ContactPhone,
+			"collegeName":  team.CollegeName,
+			"members":      memberDocs,
+			"memberCount":  len(team.Members) + 1,
+			"femaleCount":  femaleCount,
+			"payment": bson.M{
+				"status":            "paid",
+				"razorpayOrderId":   "MANUAL-LATE-ENTRY",
+				"razorpayPaymentId": "MANUAL-LATE-ENTRY",
+			},
+			"updatedAt": now,
+		}
+
+		if findErr == mongo.ErrNoDocuments {
+			baseDoc["createdAt"] = now
+			if _, err := registrations.InsertOne(ctx, baseDoc); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if _, err := registrations.UpdateOne(ctx, filter, bson.M{"$set": baseDoc}); err != nil {
+			return err
 		}
 	}
 
